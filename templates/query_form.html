@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Code Query Interface</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        label {
+            margin-right: 10px;
+        }
+        input[type="text"], input[type="submit"] {
+            padding: 8px;
+            margin: 10px 0;
+        }
+        input[type="submit"] {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+        .results {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px 0 rgba(0,0,0,0.1);
+        }
+        pre {
+            background-color: #eee;
+            padding: 10px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Code Search Query</h1>
+    <form method="POST">
+        <label for="query">Enter your query:</label>
+        <input type="text" id="query" name="query" style="width: 60%;" required><br>
+        <input type="submit" name="action" value="Chat">
+        <input type="submit" name="action" value="Context">
+    </form>
+    {% if results %}
+    <div class="results">
+        <h3>Responses:</h3>
+        {% for response in results.responses %}
+            <pre>{{ response | safe }}</pre>
+        {% endfor %}
+    </div>
+    {% endif %}
+</body>
+</html>
