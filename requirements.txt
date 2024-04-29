@@ -1,0 +1,5 @@
+lancedb
+flask
+groq
+anthropic
+openai
