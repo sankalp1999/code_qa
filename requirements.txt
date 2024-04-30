@@ -3,3 +3,6 @@ flask
 groq
 anthropic
 openai
+treesitter
+tree_sitter_languages
+cohere

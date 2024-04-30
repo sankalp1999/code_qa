@@ -4,6 +4,7 @@ from treesitter import Treesitter, Language
 from collections import defaultdict
 import re
 import csv
+from fuzzy_search import create_or_recreate_index, index_codebase
 
 def load_files(codebase_path):
     file_list = []
@@ -149,6 +150,8 @@ if __name__ == "__main__":
     codebase_language = sys.argv[1]
     codebase_path = sys.argv[2]
     
+    create_or_recreate_index(codebase_path)
+    index_codebase(codebase_path)
 
     programming_language = Language.UNKNOWN 
     if codebase_language.lower() == "java":

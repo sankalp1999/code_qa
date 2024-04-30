@@ -1,23 +1,68 @@
-README WIP
 
-Might post a blog on this. Went through many ideas but not implementing all.
 
-Question answering on codebase using topK RAG and Treesitter AST. Supports python, rust, javascript, java
+# Setup
 
-`python3 -m venv venv`
+1. Clone the repository:
 
-`source venv/bin/activate`
+   ```bash
+   git clone <repository-url>
+   ```
 
-`pip install -r requirements.txt`
+2. Navigate to the project directory:
 
-Set OPENAI_KEY, ANTHROPIC_KEY, GROQ_KEY, COHERE_KEY (Will reduce these soon)
+   ```bash
+   cd <repository-name>
+   ```
 
-To build codebase index -> `index.codebase.sh` 
+3. Set up a Python virtual environment:
 
-To run server 
+   ```bash
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
 
-`python app.py <language> <folder_path>`
+4. Install the required packages:
 
-e.g 
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-python app.py javascript /Users/sankalp/Documents/code2prompt/twitter-circle   
+### Configuration
+
+Set the environment variables for the API keys:
+
+```bash
+export OPENAI_KEY="your-openai-api-key"
+export ANTHROPIC_KEY="your-anthropic-api-key"
+export GROQ_KEY="your-groq-api-key"
+export COHERE_KEY="your-cohere-api-key"
+```
+
+### Building the Codebase Index
+
+To build the index for the codebase, run the following script:
+
+```bash
+./index.codebase.sh
+```
+
+### Usage
+
+To start the server, use the following command:
+
+```bash
+python app.py <language> <folder_path>
+```
+
+For example, to analyze a JavaScript project located in `/Users/sankalp/Documents/code2prompt/twitter-circle`, run:
+
+```bash
+python app.py javascript /Users/sankalp/Documents/code2prompt/twitter-circle
+```
+
+### Blog
+
+Consider following the upcoming blog for detailed insights and advancements on this project.
+
+---
+
