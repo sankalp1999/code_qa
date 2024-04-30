@@ -38,9 +38,8 @@ from groq import Groq
 client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
 
 # Cohere API setup
-cohere_key = os.environ.get("COHERE_RERANKER_API_KEY")
+cohere_key = os.environ.get("COHERE_API_KEY")
 co = cohere.Client(cohere_key)
-
 
 
 def groq_hyde(query):
