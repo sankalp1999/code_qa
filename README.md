@@ -1,4 +1,5 @@
-# Code Search and Query
+# CodeQA
+(better name to be decided)
 
 This project is a code search and query system that allows you to index and search through a codebase using natural language queries. It supports python, rust, javascript and java. It provides a minimal ui for easy interaction.
 
