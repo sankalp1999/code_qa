@@ -128,7 +128,7 @@ You need to provide relevant context to the LLM so that it can actually answer t
 - different tree-sitter language implementations have slightly different syntax so accommodate for that
 - generate short documentation for each of the methods -> to improve the embedding search, also query will look more like documentation
 - Embed the methods and classes in separate vector db tables
-- generate a full-text based index using whoosh library. this is a language agnostic way to get references once the keywords are clear
+- REMOVED -> generate a full-text based index using whoosh library. this is a language agnostic way to get references once the keywords are clear
 - At retrieval time query -> Hyde query -> get context -> get better query using context -> get references -> plug new context into LLM 
 - get answer
 
