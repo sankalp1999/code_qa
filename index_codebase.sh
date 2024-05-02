@@ -9,7 +9,7 @@ echo "Processing the entire directory at $folder_path with language set to $lang
 
 # Run scripts with the folder_path
 python preprocessing.py "$language" "$folder_path"
-python add_summary.py "$language" "$folder_path"
+python llm_comments.py "$language" "$folder_path"
 python create_tables.py "$language" "$folder_path"
 
 echo "Processing complete."
