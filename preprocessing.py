@@ -150,9 +150,12 @@ if __name__ == "__main__":
     codebase_language = sys.argv[1]
     codebase_path = sys.argv[2]
     
+
+    # removing fuzzy search because not giving enough ROI
+    """
     create_or_recreate_index(codebase_path)
     index_codebase(codebase_path)
-
+    """
     programming_language = Language.UNKNOWN 
     if codebase_language.lower() == "java":
         programming_language = Language.JAVA

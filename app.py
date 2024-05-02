@@ -9,7 +9,11 @@ import re
 from fuzzy_search import open_existing_index, index_codebase, search_and_fetch_lines
 import redis
 import uuid
-# Initialize Flask and other services
+import logging
+
+
+logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
+
 app = Flask(__name__)
 
 app.secret_key = os.urandom(24)
@@ -18,7 +22,7 @@ app.secret_key = os.urandom(24)
 redis_client = redis.Redis(host='localhost', port=6379, db=0)
  
 
-# Capture command line arguments for codebase path and language
+# command line args here
 if len(sys.argv) != 3:
     print("Usage: python app.py <language> <codebase_path>")
     sys.exit(1)
@@ -26,14 +30,14 @@ if len(sys.argv) != 3:
 language = sys.argv[1]
 codebase_path = sys.argv[2]
 
-ix = open_existing_index(codebase_path)
+# ix = open_existing_index(codebase_path)
 
 normalized_path = os.path.normpath(os.path.abspath(codebase_path))
     
-    # Extract the base name of the directory
+
 codebase_folder_name = os.path.basename(normalized_path)
 
-# Lancedb connection
+# lancedb connection
 uri = "database"
 db = lancedb.connect(uri)
 
@@ -62,9 +66,10 @@ def groq_hyde(query):
             {
                 "role": "system",
                 "content": f'''You are a software engineer who specializes in the programming language: {language}. 
-                Predict the code for the query that might answer the query provided in input. The context is usually technical. 
-                Just give the code based on the query, no additional text. Think step by step. Try to be concise.
-                If the question is a general one, then try to include name of relevant docs like README.md or config files that may contain info.'''
+                Predict the code for the query that can be the answer query provided in input.
+                Think step by step. Try to be concise.
+                If the question is a general one, then try to include name of relevant docs like README.md or config files that may contain info.
+                Output format: Only the new query, no additional text'''
             },
             {
                 "role": "user",
@@ -80,13 +85,12 @@ def groq_hyde_v2(query, temp_context, hyde_query):
         messages=[
             {
                 "role": "system",
-                "content": f'''You are an software engineer specializing in programming language: {language}. 
-                We need to improve and expand an original query: {query} with help of the context: {temp_context}. The new query should be like prediction of answer to 
-                the query. Your task is to frame a better query using the context that might have more keywords in terms of code and method names with the code. 
-                - If the query is code-related, provide code snippets with specific method names and keywords.
-                - If query involves general questions and not specifically code related stuff, think and mention relevant files like refer README.md
-                - If the query is about a specific method, try predicting how that method or function may look like in code or what libraries one may use focusing on latest ones.
-                - try to keep query descriptive yet concise.
+                "content": f'''You are a software engineer specializing in {language}. Improve the original query: {query} using the provided context: {temp_context}. 
+                - If code-related, include relevant code snippets with specific method names and keywords.
+                - If general, mention relevant files like README.md. 
+                - If about a specific method, predict its implementation and suggest up-to-date libraries. 
+                Keep the new query descriptive yet concise, focusing on expanding it with additional code-related keywords and details to better predict the answer.
+                output format: just provide the query, do not add additional text.
                 '''
             },
             {
@@ -106,19 +110,16 @@ def groq_query_for_references(query, context):
             {
                 "role": "system",
                 "content": f'''Given the <query>{query}</query> and <context>{context}</context> , 
-                1. frame a better, descriptive query under 4 lines with help of provided context focusing on keywords. Using your reasoning, point out what extra info / names / keywords are required for example when user asks questions about reposityr, you may mention README.md. You may add answer keywords based on your own knowledge to the query. Think on these lines.
+                1. Frame a concise query with help of provided context focusing on keywords that may help to answer the query, especially words not present in context.
+                You may mention README.md. You may add answer keywords based on your own knowledge to the query or relevant keywords from context.
+                For output, just provide the query, no additional text.
                 Output format: 
-                2. Give a detailed summary from the context that might help answer the query.
-
-                <output>
-                <context> $context </context>
-                <query> $query </query>
-
+                <query> new query here </query>
                 '''
             },
             {
                 "role": "user",
-                "content": f"<query> {query} </query> <context> {context} </context>",
+                "content": f"<query> {query} </query>",
             }
         ],
         model="llama3-70b-8192",
@@ -132,7 +133,7 @@ def groq_chat(query, context):
         messages=[
             {
                 "role": "system",
-                "content": f"You are a software engineer. Using your knowledge and given the following {context}, explain user's queries. Highlight particular code blocks, method names, class names."
+                "content": f"You are a software engineer. Using your knowledge and given the following <context> {context} </context, answer user's queries. Highlight particular code blocks, method names, class names."
             },
             {
                 "role": "user",
@@ -160,7 +161,7 @@ def anthropic_chat(query, context):
 
 def anthropic_references(query, references):
     system = f'''Given the $query and <references> {references} </references>, 
-                1. with help of references provided, grab relevant info like documentation, code snippet, method name, class name that look relevant to answer the query
+                1. with help of references provided, grab relevant info like documentation, code snippet, method name, class name that look relevant for answering the query
                 2. predict a better query under 4 lines with proper names and keywords with help of context which might look similar to answer to original query. try your best even if you are not confident.
                 Output format: 
                 <info> additional info here </info> 
@@ -172,7 +173,7 @@ def anthropic_references(query, references):
     messages=[
         {
             "role": "user",
-            "content": f"Here is my query:{query}",
+            "content": f"<query>{query}</query>",
         }
     ],
     model="claude-3-haiku-20240307",
@@ -194,10 +195,7 @@ def generate_context(query):
     method_docs = method_table.search(hyde_query).limit(5).to_pandas()
     class_docs = class_table.search(hyde_query).limit(5).to_pandas()
 
-    print("--queryv1--")
-    print(method_docs['code'].tolist())
-    print(class_docs['class_info'].tolist())
-    print("-------")
+    
 
     # no reranking first time because using 5 docs anyways
 
@@ -210,17 +208,16 @@ def generate_context(query):
     # can switch to 70b for this if can reduce num of tokens
     hyde_query_v2 = anthropic_references(query, temp_context)
 
-    print("-query_v2-")
-    print(hyde_query_v2)
-    print("---")
+    logging.info("-query_v2-")
+    logging.info(hyde_query_v2)
 
     method_docs = method_table.search(hyde_query_v2).limit(5).to_pandas()
     class_docs = class_table.search(hyde_query_v2).limit(5).to_pandas()
 
-    print("---v2---")
-    print(method_docs['code'].tolist())
-    print(class_docs['class_info'].tolist())
-    print("-------")
+    # logging.info("---v2---")
+    # logging.info(method_docs['code'].tolist())
+    # logging.info(class_docs['class_info'].tolist())
+    # logging.info("-------")
 
     method_results = co.rerank(query=hyde_query_v2, documents=method_docs['code'].tolist(), top_n=5, model='rerank-english-v3.0')
     class_results = co.rerank(query=hyde_query_v2, documents=class_docs['class_info'].tolist(), top_n=5, model='rerank-english-v3.0')
@@ -261,40 +258,37 @@ def home():
             context = generate_context(query)
 
 
-            print("-----context------", print(len(context)))
-            print(len(process_input(context)))
-            print(context)
-            print("-----context_end-----")
+            logging.info("-----context------")
+            logging.info(len(process_input(context)))
+            logging.info(context)
+            logging.info("-----context_end-----")
 
 
+            # Removing below code for references since fuzzy matching not working good enough
+            """
             # get a better query for reference matching
             query_for_references = groq_query_for_references(query, context[:10000])
             # can directly dump this even though it has context and query
 
-            print("<query for references>")
-            print(query_for_references)
-            print("</query for references>")
+            logging.info("<query for references>")
+            logging.info(query_for_references)
+            logging.info("</query for references>")
 
             results_list = search_and_fetch_lines(query_for_references, codebase_path, 100, ix)
 
+            logging.info(f"results list: {results_list}")
             code_list = []
+            idx = 0
             for results in results_list:
                 code_list.append( f"file_path: {results['absolute_path']}" + '\n'.join(results['lines']) )
+                logging.info(f"{idx}  {results['lines']}")
+                idx += 1
+
             references = '\n'.join(code_list)
-
-            print("reference length", len(references))
-
-            # commenting below because context can get >10k characters because class_info can get upto 10k characters since it 
-            # contains class code so need to potentially navigate around this
-            # one possible solution is to get top 5 class names. write a function call that allows llm to retrieve 
-            # class code on demand. this way, i won't have to load all classes in context at same time
-
-            # context = context + anthropic_references(query_for_references, context, references)
+            logging.info(f"length of references {len(references)}")
             
-            # not passing context now, earlier i wanted llm to decide what info to extract itself from the context
-            # but avoiding that now
             context = anthropic_references(groq_hyde_v2, references) + context
-   
+            """
 
         elif action == 'Chat':
 
