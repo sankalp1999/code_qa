@@ -45,6 +45,11 @@ This project is a code search and query system that allows you to index and sear
    pip install -r requirements.txt
    ```
 
+5. Run the redis server
+```
+redis-server
+```
+
 ## Configuration
 
 Set the environment variables for the API keys:
