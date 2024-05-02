@@ -1,10 +1,17 @@
 # CodeQA
-(better name to be decided)
+
 
 This project is a code search and query system that allows you to index and search through a codebase using natural language queries. It supports python, rust, javascript and java. It provides a minimal ui for easy interaction.
 
+Note for users: Indexing may take a few minutes depending on size of codebase
+and depends on LLM API too. If you have a new account for openai or anthropic, you may 
+get hit with rate limits too. 
 
-(Currently spaghetti code but it works)
+TODO:
+- improve latency - shift to groq when they raise rate limits
+- reduce number of tokens by reducing context data that you send to haiku and groq to avoid rate limits
+- better name to be decided
+- refactoring
 
 ## Features
 
