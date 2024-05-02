@@ -1,6 +1,9 @@
 # Code Search and Query
 
-This project is a code search and query system that allows you to index and search through a codebase using natural language queries. It supports multiple programming languages and provides a web interface for easy interaction.
+This project is a code search and query system that allows you to index and search through a codebase using natural language queries. It supports python, rust, javascript and java. It provides a minimal ui for easy interaction.
+
+
+(Currently spaghetti code but it works)
 
 ## Features
 
@@ -8,7 +11,6 @@ This project is a code search and query system that allows you to index and sear
 - Natural language query interface for code search
 - Context-aware search results with relevant code snippets
 - Chat-based interaction for code-related queries
-- Integration with multiple AI models and APIs (OpenAI, Anthropic, Cohere, Groq)
 
 ## Prerequisites
 
@@ -67,6 +69,8 @@ Follow the prompts to enter the language and folder path of your codebase.
 
 To start the server, use the following command:
 
+language commands should look like: `javascript, python, rust, java`
+
 ```bash
 python app.py <language> <folder_path>
 ```
@@ -88,12 +92,12 @@ Once the server is running, open a web browser and navigate to `http://localhost
 
 ## Technologies Used
 
-- Flask: Web framework for building the user interface
-- Treesitter: Parsing and analyzing code structure
-- Whoosh: Full-text search library for indexing and querying code
-- LanceDB: Embedded database for storing and searching code embeddings
-- Redis: In-memory data store for caching and session management
-- OpenAI, Anthropic, Cohere, Groq: AI models and APIs for natural language processing and code understanding
+- Flask: server and UI
+- Treesitter: parsing methods, classes, constructor declarations in a language agnostic way using the abstract syntax tree
+- Whoosh: full-text search library for indexing and querying code
+- LanceDB: vector db for storing and searching code embeddings
+- Redis: in-memory data store for caching and session management
+- OpenAI, Anthropic, Cohere, Groq: Openai, Anthropic, Groq for chat functionalities and Cohere for reranker
 
 ## How It Works
 
