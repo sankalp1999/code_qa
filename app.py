@@ -160,8 +160,8 @@ def anthropic_chat(query, context):
     return message.content[0].text
 
 def anthropic_references(query, references):
-    system = f'''Given the $query and <references> {references} </references>, 
-                1. with help of references provided, grab relevant info like documentation, code snippet, method name, class name that look relevant for answering the query
+    system = f'''Given the $query and <context> {references} </context>, 
+                1. with help of context provided, grab relevant info like documentation, code snippet, method name, class name that look relevant for answering the query
                 2. predict a better query under 4 lines with proper names and keywords with help of context which might look similar to answer to original query. try your best even if you are not confident.
                 Output format: 
                 <info> additional info here </info> 
@@ -239,7 +239,7 @@ def generate_context(query):
 
     print("Context generation is complete.")
 
-    return methods_combined + "\n\n" + classes_combined
+    return methods_combined + "\n below is class or constructor related code \n" + classes_combined
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
