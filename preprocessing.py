@@ -61,12 +61,11 @@ def parse_code_files(file_list, codebase_language):
             for class_node in class_nodes:
                 class_name = class_node.name
                 print(class_name)
-                
                 class_data.append({
                     "file_path": code_file,
                     "class_name": class_name,
                     "constructor_declaration": class_node.constructor_declaration,
-                    "method_declarations": class_node.method_declarations,
+                    "method_declarations": "\n-----\n".join(class_node.method_declarations) if class_node.method_declarations else "",
                     "references": set()  # Initialize an empty set for references
                 })
             

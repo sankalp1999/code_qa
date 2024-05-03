@@ -92,59 +92,59 @@ if __name__ == "__main__":
     uri = "database"
     db = lancedb.connect(uri)
 
-    if codebase_path in db:
-        print('exists already')
-        table = db[codebase_path]
-    else:
-        try:
-            table = db.create_table(table_name + "_method", schema=Method, mode="overwrite")
+    # if codebase_path in db:
+    #     print('exists already')
+    #     table = db[codebase_path]
+    # else:
+    try:
+        table = db.create_table(table_name + "_method", schema=Method, mode="overwrite")
 
-            # Concatenate llm_comments and source_code fields
-            method_data['code'] = method_data['llm_comments'] + '\n\n' + method_data['source_code']
+        # Concatenate llm_comments and source_code fields
+        method_data['code'] = method_data['llm_comments'] + '\n\n' + method_data['source_code']
 
-            # Check for null values in method_data
-            null_rows = method_data.isnull().any(axis=1)
-            if null_rows.any():
-                print("Null values found in method_data. Replacing with 'empty'.")
-                method_data = method_data.fillna('empty')
-            else:
-                print("No null values found in method_data.")
+        # Check for null values in method_data
+        null_rows = method_data.isnull().any(axis=1)
+        if null_rows.any():
+            print("Null values found in method_data. Replacing with 'empty'.")
+            method_data = method_data.fillna('empty')
+        else:
+            print("No null values found in method_data.")
 
-            # Add the concatenated data to the table
-            table.add(method_data)
-            
-  
+        # Add the concatenated data to the table
+        table.add(method_data)
         
-            class_table = db.create_table(table_name + "_class", schema=Class, mode="overwrite")
-            null_rows = class_data.isnull().any(axis=1)
-            if null_rows.any():
-                print("Null values found in class_data. Replacing with 'empty'.")
-                class_data = class_data.fillna('')
-            else:
-                print("No null values found in class_data.")
 
-            class_data['class_info'] = class_data['class_name'] + '\n\n Constructors:' + class_data['constructor_declaration'] + '\n\n' + class_data['method_declarations'] +  '\n\n' + class_data['references']
-           
+    
+        class_table = db.create_table(table_name + "_class", schema=Class, mode="overwrite")
+        null_rows = class_data.isnull().any(axis=1)
+        if null_rows.any():
+            print("Null values found in class_data. Replacing with 'empty'.")
+            class_data = class_data.fillna('')
+        else:
+            print("No null values found in class_data.")
 
-            # TODO a misc content table is possible? where i dump other stuff like text files, markdown, config files, toml files etc.
-            # print(markdown_contents)
-            # class_table.add(markdown_contents) 
-            # add after something because chance class_data may be empty
-            if len(class_data) == 0:
-                columns = ['class_info', 'file_path', 'class_name', 'constructor_declaration', 'method_declarations', 'references']
-                empty_data = {col: ["empty"] for col in columns}
+        class_data['class_info'] = class_data['class_name'] + '\n\n Constructors:' + class_data['constructor_declaration'] + '\n\n' + class_data['method_declarations'] +  '\n\n' + class_data['references']
+        
 
-                class_data = pd.DataFrame(empty_data)
-                
-            class_table.add(class_data)
-            class_table.add(create_markdown_dataframe(markdown_contents))
+        # TODO a misc content table is possible? where i dump other stuff like text files, markdown, config files, toml files etc.
+        # print(markdown_contents)
+        # class_table.add(markdown_contents) 
+        # add after something because chance class_data may be empty
+        if len(class_data) == 0:
+            columns = ['class_info', 'file_path', 'class_name', 'constructor_declaration', 'method_declarations', 'references']
+            empty_data = {col: ["empty"] for col in columns}
+
+            class_data = pd.DataFrame(empty_data)
+            
+        class_table.add(class_data)
+        class_table.add(create_markdown_dataframe(markdown_contents))
 
 
-            print("Embedded method data successfully")
+        print("Embedded method data successfully")
 
-            print("Embedded class data successfully")
+        print("Embedded class data successfully")
 
-        except Exception as e:
-            if codebase_path in db:
-                db.drop_table(codebase_path)
-            raise e
+    except Exception as e:
+        if codebase_path in db:
+            db.drop_table(codebase_path)
+        raise e
