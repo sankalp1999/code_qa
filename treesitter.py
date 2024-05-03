@@ -112,9 +112,11 @@ class Treesitter(ABC):
 
     def _query_class_name(self, node: tree_sitter.Node):
         if node.type == self.class_declaration_identifier:
-            for child in node.children:
-                if child.type == self.method_name_identifier:
-                    return child.text.decode()
+            # print("class_code", node.text.decode())
+            return node.text.decode()
+            # for child in node.children:
+            #     if child.type == self.method_name_identifier:
+            #         return child.text.decode()
         return None
 
     def _query_method_declarations(self, node: tree_sitter.Node):
