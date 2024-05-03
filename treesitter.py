@@ -112,23 +112,25 @@ class Treesitter(ABC):
 
     def _query_class_name(self, node: tree_sitter.Node):
         if node.type == self.class_declaration_identifier:
-            # print("class_code", node.text.decode())
             return node.text.decode()
-            # for child in node.children:
-            #     if child.type == self.method_name_identifier:
-            #         return child.text.decode()
         return None
 
     def _query_method_declarations(self, node: tree_sitter.Node):
+        # need to separately take identifier and parameters from tree
+        # so just fetch first line of method code. taking 2 to get the annotation as well
         method_declarations = []
         if node.type == self.method_declaration_identifier:
-            method_declarations.append(node.text.decode())
+            code_lines = node.text.decode().split("\n")
+            if code_lines:
+                method_declaration = "\n".join(code_lines[:2]) 
+                method_declarations.append(method_declaration)
         else:
             for child in node.children:
                 method_declarations.extend(self._query_method_declarations(child))
         return method_declarations
 
     def _query_constructor_declarations(self, node: tree_sitter.Node):
+        # actually taking entire constructor with code here, not just name
         constructor_declarations = []
         if node.type == self.constructor_declaration_identifier:
             constructor_declarations.append(node.text.decode())
@@ -154,7 +156,8 @@ class Treesitter(ABC):
 
     def _query_method_name(self, node: tree_sitter.Node):
         if node.type == self.method_declaration_identifier:
-            for child in node.children:
-                if child.type == self.method_name_identifier:
-                    return child.text.decode()
+            code_lines = node.text.decode().split("\n")
+            if code_lines:
+                method_declaration = "\n".join(code_lines[:2]) 
+                return method_declaration
         return None
