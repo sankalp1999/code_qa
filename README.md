@@ -72,6 +72,11 @@ export COHERE_KEY="your-cohere-api-key"
 
 To build the index for the codebase, run the following script:
 
+
+```
+chmod +x index_codebase.sh
+```
+
 ```bash
 ./index_codebase.sh
 ```
