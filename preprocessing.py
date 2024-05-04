@@ -109,7 +109,6 @@ def find_class_references(file_path: str, class_ref_node_type, class_name: str, 
     while stack:
         node = stack.pop()
         if node.type == class_ref_node_type and node.text.decode() == class_name:
-            print("REFERENCE FOUND.")
             reference = {
                 "file": file_path,
                 "line": node.start_point[0],
@@ -178,8 +177,6 @@ def process_codebase(file_list, language: str):
     class_ref_node_type = REFERENCE_IDENTIFIERS[language]["class"]
     method_ref_node_type = REFERENCE_IDENTIFIERS[language]["method"]
     child_field_name = REFERENCE_IDENTIFIERS[language]["child_field_name"]
-
-    print("HELLO", class_ref_node_type, method_ref_node_type)
     
     for file_path in file_list:
         if file_path not in file_asts:
@@ -248,7 +245,7 @@ def parse_code_files(file_list, codebase_language):
                 if class_name in class_infos_dict:
                     class_info = class_infos_dict[class_name]
                     references = class_info.references
-                    print("class_info got hit", class_info.references)
+                    # print("class_info got hit", class_info.references)
 
                 class_data.append({
                     "file_path": code_file,
@@ -266,7 +263,7 @@ def parse_code_files(file_list, codebase_language):
                 # Get the references for the current method from the method_infos_dict
                 if name in method_infos_dict:
                     method_info = method_infos_dict[name]
-                    print("method_info got hit", method_info.references)
+                    # print("method_info got hit", method_info.references)
                     references = method_info.references
 
                 method_data.append({
@@ -307,9 +304,7 @@ def write_class_data_to_csv(class_data, output_directory):
     with open(output_file, "w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
-        for class_info in class_data:
-            class_info["references"] = ",".join(class_info["references"])  # Convert set to string
-            writer.writerow(class_info)
+        writer.writerows(class_data) # references is saved as a list so maybe join while creating embedding
     print(f"Class data written to {output_file}")
 
 def write_method_data_to_csv(method_data, output_directory):
@@ -318,7 +313,7 @@ def write_method_data_to_csv(method_data, output_directory):
     with open(output_file, "w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(method_data)
+        writer.writerows(method_data) # references is saved as a list so maybe join while creating embedding
     print(f"Method data written to {output_file}")
 
 # Example usage
