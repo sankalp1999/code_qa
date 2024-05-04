@@ -59,6 +59,7 @@ class Method(LanceModel):
     doc_comment: str
     source_code: str
     llm_comments: str
+    references: str
 
 class Class(LanceModel):
     class_info: str = model.SourceField()
@@ -123,8 +124,14 @@ if __name__ == "__main__":
         else:
             print("No null values found in class_data.")
 
-        class_data['class_info'] = class_data['class_name'] + '\n\n Constructors:' + class_data['constructor_declaration'] + '\n\n' + class_data['method_declarations'] +  '\n\n' + class_data['references']
-        
+        class_data['class_info'] = class_data['class_name'] + '\n\n Constructors:' + class_data['constructor_declaration'] + '\n\n' + class_data['method_declarations'] 
+        class_data['class_info'] = (
+            f"File: {class_data['file_path']}\n\n"
+            f"Class: {class_data['class_name']}\n\n"
+            f"Source Code:\n{class_data['source_code']}\n\n"
+            f"Constructors:\n{class_data['constructor_declaration']}\n\n"
+            f"Method Declarations:\n{class_data['method_declarations']}"
+        )
 
         # TODO a misc content table is possible? where i dump other stuff like text files, markdown, config files, toml files etc.
         # print(markdown_contents)
@@ -138,7 +145,6 @@ if __name__ == "__main__":
             
         class_table.add(class_data)
         class_table.add(create_markdown_dataframe(markdown_contents))
-
 
         print("Embedded method data successfully")
 
