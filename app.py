@@ -6,7 +6,6 @@ import cohere
 import pandas as pd
 from anthropic import Anthropic
 import re
-from fuzzy_search import open_existing_index, index_codebase, search_and_fetch_lines
 import redis
 import uuid
 import logging
@@ -195,15 +194,7 @@ def generate_context(query):
     method_docs = method_table.search(hyde_query).limit(5).to_pandas()
     class_docs = class_table.search(hyde_query).limit(5).to_pandas()
 
-    
-
-    # no reranking first time because using 5 docs anyways
-
-    # method_results = co.rerank(query=hyde_query, documents=method_docs['code'].tolist(), top_n=5, model='rerank-english-v3.0')
-    # class_results = co.rerank(query=hyde_query, documents=class_docs['class_info'].tolist(), top_n=5, model='rerank-english-v3.0')
-
-
-    temp_context = '\n'.join(method_docs['code'] + '\n'.join(class_docs['class_info']))
+    temp_context = '\n'.join(method_docs['code'] + '\n'.join(class_docs['class_info']) )
 
     # can switch to 70b for this if can reduce num of tokens
     hyde_query_v2 = anthropic_references(query, temp_context)
@@ -235,9 +226,18 @@ def generate_context(query):
     methods_combined = "\n\n".join(f"File: {row['file_path']}\nCode:\n{row['code']}" for index, row in top_3_methods.iterrows())
 
     top_3_classes = top_k_reranked_class_results_df.iloc[:3]
-    classes_combined = "\n\n".join(f"File: {row['file_path']}\nClass Info:\n{row['class_info']}" for index, row in top_3_classes.iterrows())
+    classes_combined = "\n\n".join(f"File: {row['file_path']}\nClass Info:\n{row['class_info']} References: \n{row['references']}  \n END OF ROW {index}" for index, row in top_3_classes.iterrows())
 
+
+    print("----------------")
+    print(classes_combined)
+    print("LENGTH:", len(classes_combined))
+    print("----------------")
     print("Context generation is complete.")
+
+    print("METHODS COMBINED")
+    print(methods_combined)
+    print("----METHODS END----")
 
     return methods_combined + "\n below is class or constructor related code \n" + classes_combined
 
