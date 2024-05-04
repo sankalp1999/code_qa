@@ -304,7 +304,14 @@ def write_class_data_to_csv(class_data, output_directory):
     with open(output_file, "w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(class_data) # references is saved as a list so maybe join while creating embedding
+        idx = 0
+        for row in class_data:
+            row["references"] = ",".join(map(str, row["references"]))
+            writer.writerow(row)
+            idx += 1
+            print(f"row {idx} written")
+            print(row)
+            print("------------------")
     print(f"Class data written to {output_file}")
 
 def write_method_data_to_csv(method_data, output_directory):
@@ -313,7 +320,10 @@ def write_method_data_to_csv(method_data, output_directory):
     with open(output_file, "w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerows(method_data) # references is saved as a list so maybe join while creating embedding
+        for row in method_data:
+            # Convert references list to a comma-separated string
+            row["references"] = ",".join(map(str, row["references"]))
+            writer.writerow(row)
     print(f"Method data written to {output_file}")
 
 # Example usage
