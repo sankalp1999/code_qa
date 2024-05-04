@@ -31,13 +31,12 @@ class TreesitterClassNode:
     def __init__(
         self,
         name: "str | bytes | None",
-        # method_source_code: "str | None",
         method_declarations: "str | None",
         constructor_declaration: "str | None",
         node: tree_sitter.Node,
     ):
         self.name = name
-        # self.method_source_code = method_source_code or node.text.decode()
+        self.source_code = node.text.decode()
         self.method_declarations = method_declarations
         self.constructor_declaration = constructor_declaration 
         self.node = node
@@ -112,7 +111,10 @@ class Treesitter(ABC):
 
     def _query_class_name(self, node: tree_sitter.Node):
         if node.type == self.class_declaration_identifier:
-            return node.text.decode()
+            class_name_node = node.child_by_field_name("name")
+        if class_name_node:
+            print(f"Treesitter Class Name: {class_name_node.text.decode()}")
+            return class_name_node.text.decode()
         return None
 
     def _query_method_declarations(self, node: tree_sitter.Node):
