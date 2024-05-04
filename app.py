@@ -10,10 +10,15 @@ import redis
 import uuid
 import logging
 
+import markdown
 
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
 app = Flask(__name__)
+
+@app.template_filter('markdown')
+def markdown_filter(text):
+    return markdown.markdown(text, extensions=['fenced_code', 'tables'])
 
 app.secret_key = os.urandom(24)
 
@@ -306,7 +311,7 @@ def home():
         
         response = anthropic_chat(query, context[:10000]) # token rate limit is problematic
 
-        combined_response = f"Query: {query}\nResponse: {response}"
+        combined_response = f"Query: {query} \n\n Response: {response}"
 
         redis_key = f"user:{user_id}:responses"
         redis_client.rpush(redis_key, combined_response)
