@@ -8,3 +8,4 @@ tree_sitter_languages
 cohere
 pandas
 redis
+markdown
