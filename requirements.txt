@@ -3,7 +3,7 @@ flask
 groq
 anthropic
 openai
-tree-sitter
+tree-sitter==0.21.3
 tree_sitter_languages
 cohere
 pandas
