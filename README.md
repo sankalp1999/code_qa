@@ -79,7 +79,10 @@ chmod +x index_codebase.sh
 ./index_codebase.sh
 ```
 
-Follow the prompts to enter the language and folder path of your codebase.
+Follow the prompts to enter the language and absolute path of your codebase.
+
+![Example Image](images/example.png)
+
 
 ## Usage
 
