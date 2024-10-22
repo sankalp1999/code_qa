@@ -90,20 +90,19 @@ def openai_hyde_v2(query, temp_context, hyde_query):
             },
             {
                 "role": "user",
-                "content": f"Predict the answer to the query: {query} in the context of {language}.",
+                "content": f"Predict the answer to the query: {hyde_query} in the context of {language}.",
             }
         ]
     )
     return chat_completion.choices[0].message.content
 
-# Replace groq_query_for_references function
 def openai_query_for_references(query, context):
     chat_completion = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
             {
                 "role": "system",
-                "content": REFERENCES_SYSTEM_PROMPT
+                "content": REFERENCES_SYSTEM_PROMPT.format(query=query, context=context)
             },
             {
                 "role": "user",
@@ -113,7 +112,6 @@ def openai_query_for_references(query, context):
     )
     return chat_completion.choices[0].message.content
 
-# Replace groq_chat function
 def openai_chat(query, context):
     chat_completion = client.chat.completions.create(
         model="gpt-4o-mini",
