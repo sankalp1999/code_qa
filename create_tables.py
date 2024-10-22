@@ -71,12 +71,11 @@ class Class(LanceModel):
     references: str
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python script.py <language> <code_base_path>")
+    if len(sys.argv) != 2:
+        print("Usage: python script.py <code_base_path>")
         sys.exit(1)
 
-    language = sys.argv[1]
-    codebase_path = sys.argv[2]
+    codebase_path = sys.argv[1]
 
     table_name, input_directory = get_name_and_input_dir(codebase_path)
     method_data_file = os.path.join(input_directory, "method_data.csv")
@@ -101,10 +100,9 @@ if __name__ == "__main__":
         table = db.create_table(table_name + "_method", schema=Method, mode="overwrite")
 
         # Concatenate llm_comments and source_code fields
-        method_data['code'] = method_data['llm_comments'] + '\n\n' + method_data['source_code']
-
-        # Check for null values in method_data
+        method_data['code'] = method_data['source_code']
         null_rows = method_data.isnull().any(axis=1)
+
         if null_rows.any():
             print("Null values found in method_data. Replacing with 'empty'.")
             method_data = method_data.fillna('empty')
@@ -113,8 +111,6 @@ if __name__ == "__main__":
 
         # Add the concatenated data to the table
         table.add(method_data)
-        
-
     
         class_table = db.create_table(table_name + "_class", schema=Class, mode="overwrite")
         null_rows = class_data.isnull().any(axis=1)
