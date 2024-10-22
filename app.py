@@ -4,13 +4,18 @@ import sys
 import lancedb
 import cohere
 import pandas as pd
-from anthropic import Anthropic
 import re
 import redis
 import uuid
 import logging
-
 import markdown
+from openai import OpenAI
+from prompts import (
+    HYDE_SYSTEM_PROMPT,
+    HYDE_V2_SYSTEM_PROMPT,
+    REFERENCES_SYSTEM_PROMPT,
+    CHAT_SYSTEM_PROMPT  
+)
 
 logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
@@ -49,141 +54,81 @@ method_table = db.open_table(codebase_folder_name + "_method")
 class_table = db.open_table(codebase_folder_name + "_class")
 
 
-# Groq API setup
-from groq import Groq
-client = Groq(api_key=os.environ.get("GROQ_API_KEY"))
+# Replace Groq and Anthropic client setup with OpenAI
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 # Cohere API setup
 cohere_key = os.environ.get("COHERE_API_KEY")
 co = cohere.Client(cohere_key)
 
 
-anthropic_client = Anthropic(
-    # This is the default and can be omitted
-    api_key=os.environ.get("ANTHROPIC_API_KEY"),
-)
-
-# For Hyde, use llama70b for better reasoning and code
-def groq_hyde(query):
+# Replace groq_hyde function
+def openai_hyde(query):
     chat_completion = client.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "system",
-                "content": f'''You are a software engineer who specializes in the programming language: {language}. 
-                Predict the code for the query that can be the answer query provided in input.
-                Think step by step. Try to be concise.
-                If the question is a general one, then try to include name of relevant docs like README.md or config files that may contain info.
-                Output format: Only the new query, no additional text'''
+                "content": HYDE_SYSTEM_PROMPT.format(language=language)
             },
             {
                 "role": "user",
                 "content": f"Help predict the answer to the query: {query} in the programming language: {language}.",
             }
-        ],
-        model="llama3-70b-8192",
+        ]
     )
     return chat_completion.choices[0].message.content
 
-def groq_hyde_v2(query, temp_context, hyde_query):
+# Replace groq_hyde_v2 function
+def openai_hyde_v2(query, temp_context, hyde_query):
     chat_completion = client.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "system",
-                "content": f'''You are a software engineer specializing in {language}. Improve the original query: {query} using the provided context: {temp_context}. 
-                - If code-related, include relevant code snippets with specific method names and keywords.
-                - If general, mention relevant files like README.md. 
-                - If about a specific method, predict its implementation and suggest up-to-date libraries. 
-                Keep the new query descriptive yet concise, focusing on expanding it with additional code-related keywords and details to better predict the answer.
-                output format: just provide the query, do not add additional text.
-                '''
+                "content": HYDE_V2_SYSTEM_PROMPT.format(language=language, query=query, temp_context=temp_context)
             },
             {
                 "role": "user",
                 "content": f"Predict the answer to the query: {query} in the context of {language}.",
             }
-        ],
-        model="llama3-70b-8192",
+        ]
     )
     return chat_completion.choices[0].message.content
 
-
-
-def groq_query_for_references(query, context):
+# Replace groq_query_for_references function
+def openai_query_for_references(query, context):
     chat_completion = client.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "system",
-                "content": f'''Given the <query>{query}</query> and <context>{context}</context> , 
-                1. Frame a concise query with help of provided context focusing on keywords that may help to answer the query, especially words not present in context.
-                You may mention README.md. You may add answer keywords based on your own knowledge to the query or relevant keywords from context.
-                For output, just provide the query, no additional text.
-                Output format: 
-                <query> new query here </query>
-                '''
+                "content": REFERENCES_SYSTEM_PROMPT
             },
             {
                 "role": "user",
-                "content": f"<query> {query} </query>",
+                "content": f"<query>{query}</query>",
             }
-        ],
-        model="llama3-70b-8192",
+        ]
     )
     return chat_completion.choices[0].message.content
 
-
-# For chat, changing to anthropic for higher context
-def groq_chat(query, context):
+# Replace groq_chat function
+def openai_chat(query, context):
     chat_completion = client.chat.completions.create(
+        model="gpt-4o-mini",
         messages=[
             {
                 "role": "system",
-                "content": f"You are a software engineer. Using your knowledge and given the following <context> {context} </context, answer user's queries. Highlight particular code blocks, method names, class names."
+                "content": CHAT_SYSTEM_PROMPT.format(context=context)
             },
             {
                 "role": "user",
-                "content": f"{query}",
+                "content": query,
             }
-        ],
-        model="llama3-70b-8192",
+        ]
     )
     return chat_completion.choices[0].message.content
-
-def anthropic_chat(query, context):
-
-    message = anthropic_client.messages.create(
-    max_tokens=4096,
-    system = f"You are a software engineer. Using your knowledge and given the following context:{context}, explain user's queries. Highlight particular code blocks, method names, class names. Be descriptive.",
-    messages=[
-        {
-            "role": "user",
-            "content": f"{query}",
-        }
-    ],
-    model="claude-3-haiku-20240307",
-    )
-    return message.content[0].text
-
-def anthropic_references(query, references):
-    system = f'''Given the $query and <context> {references} </context>, 
-                1. with help of context provided, grab relevant info like documentation, code snippet, method name, class name that look relevant for answering the query
-                2. predict a better query under 4 lines with proper names and keywords with help of context which might look similar to answer to original query. try your best even if you are not confident.
-                Output format: 
-                <info> additional info here </info> 
-                <query> new query here </query>
-                '''
-    message = anthropic_client.messages.create(
-    max_tokens=4096,
-    system = system,
-    messages=[
-        {
-            "role": "user",
-            "content": f"<query>{query}</query>",
-        }
-    ],
-    model="claude-3-haiku-20240307",
-    )
-    return message.content[0].text
-
 
 def process_input(input_text):
     processed_text = input_text.replace('\n', ' ').replace('\t', ' ')
@@ -193,8 +138,7 @@ def process_input(input_text):
     return processed_text
 
 def generate_context(query):
-    """Generate context based on a query."""
-    hyde_query = groq_hyde(query)
+    hyde_query = openai_hyde(query)
 
     method_docs = method_table.search(hyde_query).limit(5).to_pandas()
     class_docs = class_table.search(hyde_query).limit(5).to_pandas()
@@ -202,7 +146,7 @@ def generate_context(query):
     temp_context = '\n'.join(method_docs['code'] + '\n'.join(class_docs['class_info']) )
 
     # can switch to 70b for this if can reduce num of tokens
-    hyde_query_v2 = anthropic_references(query, temp_context)
+    hyde_query_v2 = openai_query_for_references(query, temp_context)
 
     logging.info("-query_v2-")
     logging.info(hyde_query_v2)
@@ -269,32 +213,6 @@ def home():
             logging.info("-----context_end-----")
 
 
-            # Removing below code for references since fuzzy matching not working good enough
-            """
-            # get a better query for reference matching
-            query_for_references = groq_query_for_references(query, context[:10000])
-            # can directly dump this even though it has context and query
-
-            logging.info("<query for references>")
-            logging.info(query_for_references)
-            logging.info("</query for references>")
-
-            results_list = search_and_fetch_lines(query_for_references, codebase_path, 100, ix)
-
-            logging.info(f"results list: {results_list}")
-            code_list = []
-            idx = 0
-            for results in results_list:
-                code_list.append( f"file_path: {results['absolute_path']}" + '\n'.join(results['lines']) )
-                logging.info(f"{idx}  {results['lines']}")
-                idx += 1
-
-            references = '\n'.join(code_list)
-            logging.info(f"length of references {len(references)}")
-            
-            context = anthropic_references(groq_hyde_v2, references) + context
-            """
-
         elif action == 'Chat':
 
 
@@ -309,7 +227,7 @@ def home():
                 context = context.decode()
             
         
-        response = anthropic_chat(query, context[:10000]) # token rate limit is problematic
+        response = openai_chat(query, context[:10000]) # token rate limit is problematic
 
         combined_response = f"Query: {query} \n\n Response: {response}"
 
