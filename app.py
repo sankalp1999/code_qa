@@ -5,7 +5,7 @@ import lancedb
 import re
 import redis
 import uuid
-import logging
+from loguru import logging
 import markdown
 from openai import OpenAI
 from lancedb.rerankers import AnswerdotaiRerankers
@@ -235,7 +235,7 @@ def home():
                 app.logger.info("Found context")
                 context = context.decode()
         
-        response = openai_chat(query, context[:10000])  # token rate limit is problematic
+        response = openai_chat(query, context[:12000])  # token rate limit is problematic
 
         combined_response = f"Query: {query} \n\n Response: {response}"
 

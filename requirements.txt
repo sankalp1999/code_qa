@@ -9,3 +9,4 @@ cohere
 pandas
 redis
 markdown
+loguru
