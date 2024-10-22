@@ -1,165 +1,189 @@
 from abc import ABC
-import tree_sitter
+from tree_sitter import Language, Parser
 from tree_sitter_languages import get_language, get_parser
 from enum import Enum
-
 import logging
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
-
-class Language(Enum):
+class LanguageEnum(Enum):
     JAVA = "java"
     PYTHON = "python"
     RUST = "rust"
     JAVASCRIPT = "javascript"
     UNKNOWN = "unknown"
 
+LANGUAGE_QUERIES = {
+    LanguageEnum.JAVA: {
+        'class_query': """
+            (class_declaration
+                name: (identifier) @class.name)
+        """,
+        'method_query': """
+            [
+                (method_declaration
+                    name: (identifier) @method.name)
+                (constructor_declaration
+                    name: (identifier) @method.name)
+            ]
+        """,
+        'doc_query': """
+            ((block_comment) @comment)
+        """
+    },
+    LanguageEnum.PYTHON: {
+        'class_query': """
+            (class_definition
+                name: (identifier) @class.name)
+        """,
+        'method_query': """
+            (function_definition
+                name: (identifier) @function.name)
+        """,
+        'doc_query': """
+            (expression_statement
+                (string) @comment)
+        """
+    },
+    LanguageEnum.RUST: {
+        'class_query': """
+            (struct_item
+                name: (type_identifier) @class.name)
+        """,
+        'method_query': """
+            (function_item
+                name: (identifier) @function.name)
+        """,
+        'doc_query': """
+            [
+                (line_comment) @comment
+                (block_comment) @comment
+            ]
+        """
+    },
+    LanguageEnum.JAVASCRIPT: {
+        'class_query': """
+            (class_declaration
+                name: (identifier) @class.name)
+        """,
+        'method_query': """
+            (method_definition
+                name: (property_identifier) @method.name)
+        """,
+        'doc_query': """
+            ((comment) @comment)
+        """
+    },
+    # Add other languages as needed
+}
+
 class TreesitterMethodNode:
     def __init__(
         self,
-        name: "str | bytes | None",
-        doc_comment: "str | None",
-        method_source_code: "str | None",
-        node: tree_sitter.Node,
+        name: str,
+        doc_comment: str,
+        method_source_code: str,
+        node,
     ):
         self.name = name
         self.doc_comment = doc_comment
-        self.method_source_code = method_source_code or node.text.decode()
+        self.method_source_code = method_source_code
         self.node = node
 
 class TreesitterClassNode:
     def __init__(
         self,
-        name: "str | bytes | None",
-        method_declarations: "str | None",
-        constructor_declaration: "str | None",
-        node: tree_sitter.Node,
+        name: str,
+        method_declarations: list,
+        node,
     ):
         self.name = name
         self.source_code = node.text.decode()
         self.method_declarations = method_declarations
-        self.constructor_declaration = constructor_declaration 
         self.node = node
 
 class Treesitter(ABC):
-    def __init__(
-        self,
-        language: Language,
-        method_declaration_identifier: str,
-        name_identifier: str,
-        doc_comment_identifier: str,
-        class_declaration_identifier,
-        constructor_declaration_identifier: str
-    ):
+    def __init__(self, language: LanguageEnum):
+        self.language_enum = language
         self.parser = get_parser(language.value)
-        self.language = get_language(language.value)
+        self.language_obj = get_language(language.value)
+        self.query_config = LANGUAGE_QUERIES.get(language)
+        if not self.query_config:
+            raise ValueError(f"Unsupported language: {language}")
 
-        self.method_declaration_identifier = method_declaration_identifier
-        self.method_name_identifier = name_identifier
-        self.doc_comment_identifier = doc_comment_identifier
-
-        self.class_declaration_identifier = class_declaration_identifier
-        self.constructor_declaration_identifier = constructor_declaration_identifier
-        # methods are already covered in methods
+        # Corrected query instantiation
+        self.class_query = self.language_obj.query(self.query_config['class_query'])
+        self.method_query = self.language_obj.query(self.query_config['method_query'])
+        self.doc_query = self.language_obj.query(self.query_config['doc_query'])
 
     @staticmethod
-    def create_treesitter(language: Language) -> "Treesitter":
-        if language == Language.JAVA:
-            from treesitter_implementations import TreesitterJava
-            return TreesitterJava()
-        elif language == Language.PYTHON:
-            from treesitter_implementations import TreesitterPython
-            return TreesitterPython()
-        elif language == Language.RUST:
-            from treesitter_implementations import TreesitterRust
-            return TreesitterRust()
-        elif language == Language.JAVASCRIPT:
-            from treesitter_implementations import TreesitterJavaScript
-            return TreesitterJavaScript()
-        else:
-            raise ValueError("Unsupported language")
+    def create_treesitter(language: LanguageEnum) -> "Treesitter":
+        return Treesitter(language)
 
     def parse(self, file_bytes: bytes) -> tuple[list[TreesitterClassNode], list[TreesitterMethodNode]]:
-        self.tree = self.parser.parse(file_bytes)
+        tree = self.parser.parse(file_bytes)
+        root_node = tree.root_node
+
         class_results = []
         method_results = []
 
-        classes = self._query_classes(self.tree.root_node)
-        logging.info(f"Found classes: {classes}") 
-        for class_node in classes:
-            class_name = self._query_class_name(class_node)
-            constructor_declarations = self._query_constructor_declarations(class_node)
-            method_declarations = self._query_method_declarations(class_node)
-            class_results.append(TreesitterClassNode(class_name, method_declarations, constructor_declarations, class_node))
+        # Extract classes
+        class_captures = self.class_query.captures(root_node)
+        class_nodes = []
+        for node, capture_name in class_captures:
+            if capture_name == 'class.name':
+                class_name = node.text.decode()
+                class_node = node.parent
+                logging.info(f"Found class: {class_name}")
+                # Extract methods inside the class
+                method_declarations = self._extract_methods_in_class(class_node)
+                class_results.append(TreesitterClassNode(class_name, method_declarations, class_node))
+                class_nodes.append(class_node)
 
-        methods = self._query_all_methods(self.tree.root_node)
-        for method in methods:
-            method_name = self._query_method_name(method["method"])
-            doc_comment = method["doc_comment"]
-            method_results.append(TreesitterMethodNode(method_name, doc_comment, None, method["method"]))
+        # Extract methods outside of classes (if applicable)
+        method_captures = self.method_query.captures(root_node)
+        for node, capture_name in method_captures:
+            if capture_name in ['method.name', 'function.name']:
+                method_name = node.text.decode()
+                method_node = node.parent
+                if not any(self._is_descendant_of(method_node, class_node) for class_node in class_nodes):
+                    doc_comment = self._extract_doc_comment(method_node)
+                    method_source_code = method_node.text.decode()
+                    method_results.append(TreesitterMethodNode(method_name, doc_comment, method_source_code, method_node))
 
         return class_results, method_results
 
-    def _query_classes(self, node: tree_sitter.Node):
-        classes = []
-        if node.type == self.class_declaration_identifier:
-            classes.append(node)
-        else:
-            for child in node.children:
-                classes.extend(self._query_classes(child))
-        return classes
-
-    def _query_class_name(self, node: tree_sitter.Node):
-        if node.type == self.class_declaration_identifier:
-            class_name_node = node.child_by_field_name("name")
-        if class_name_node:
-            print(f"Treesitter Class Name: {class_name_node.text.decode()}")
-            return class_name_node.text.decode()
-        return None
-
-    def _query_method_declarations(self, node: tree_sitter.Node):
-        # need to separately take identifier and parameters from tree
-        # so just fetch first line of method code. taking 2 to get the annotation as well
+    def _extract_methods_in_class(self, class_node):
         method_declarations = []
-        if node.type == self.method_declaration_identifier:
-            code_lines = node.text.decode().split("\n")
-            if code_lines:
-                method_declaration = "\n".join(code_lines[:2]) 
+        # Apply method_query to the class_node
+        method_captures = self.method_query.captures(class_node)
+        for node, capture_name in method_captures:
+            if capture_name in ['method.name', 'function.name']:
+                method_declaration = node.parent.text.decode()
                 method_declarations.append(method_declaration)
-        else:
-            for child in node.children:
-                method_declarations.extend(self._query_method_declarations(child))
         return method_declarations
 
-    def _query_constructor_declarations(self, node: tree_sitter.Node):
-        # actually taking entire constructor with code here, not just name
-        constructor_declarations = []
-        if node.type == self.constructor_declaration_identifier:
-            constructor_declarations.append(node.text.decode())
-        else:
-            for child in node.children:
-                constructor_declarations.extend(self._query_constructor_declarations(child))
-        return constructor_declarations
+    def _extract_doc_comment(self, node):
+        # Search for doc comments preceding the node
+        doc_comment = ''
+        current_node = node.prev_sibling
+        while current_node:
+            captures = self.doc_query.captures(current_node)
+            if captures:
+                for cap_node, cap_name in captures:
+                    if cap_name == 'comment':
+                        doc_comment = cap_node.text.decode() + '\n' + doc_comment
+            elif current_node.type not in ['comment', 'block_comment', 'line_comment', 'expression_statement']:
+                # Stop if we reach a node that's not a comment
+                break
+            current_node = current_node.prev_sibling
+        return doc_comment.strip()
 
-    def _query_all_methods(self, node: tree_sitter.Node):
-        methods = []
-        if node.type == self.method_declaration_identifier:
-            doc_comment_node = None
-            if (
-                node.prev_named_sibling
-                and node.prev_named_sibling.type == self.doc_comment_identifier
-            ):
-                doc_comment_node = node.prev_named_sibling.text.decode()
-            methods.append({"method": node, "doc_comment": doc_comment_node})
-        else:
-            for child in node.children:
-                methods.extend(self._query_all_methods(child))
-        return methods
-
-    def _query_method_name(self, node: tree_sitter.Node):
-        if node.type == self.method_declaration_identifier:
-            code_lines = node.text.decode().split("\n")
-            if code_lines:
-                method_declaration = "\n".join(code_lines[:2]) 
-                return method_declaration
-        return None
+    def _is_descendant_of(self, node, ancestor):
+        # Check if 'node' is a descendant of 'ancestor'
+        current = node.parent
+        while current:
+            if current == ancestor:
+                return True
+            current = current.parent
+        return False
