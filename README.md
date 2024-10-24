@@ -64,9 +64,6 @@ Set the environment variables for the API keys:
 
 ```bash
 export OPENAI_KEY="your-openai-api-key"
-export ANTHROPIC_KEY="your-anthropic-api-key"
-export GROQ_KEY="your-groq-api-key"
-export COHERE_KEY="your-cohere-api-key"
 ```
 
 ## Building the Codebase Index

@@ -8,3 +8,5 @@ pandas
 redis
 markdown
 tiktoken
+rerankers
+rerankers[transformers]
