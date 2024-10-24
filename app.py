@@ -5,7 +5,7 @@ import lancedb
 import re
 import redis
 import uuid
-from loguru import logging
+import loguru as logging
 import markdown
 from openai import OpenAI
 from lancedb.rerankers import AnswerdotaiRerankers

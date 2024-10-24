@@ -4,6 +4,7 @@ import pandas as pd
 import lancedb
 from lancedb.embeddings import EmbeddingFunctionRegistry
 from lancedb.pydantic import LanceModel, Vector
+import tiktoken
 
 def get_name_and_input_dir(codebase_path):
     # Normalize and get the absolute path
@@ -20,16 +21,16 @@ def get_name_and_input_dir(codebase_path):
     
     return codebase_folder_name, output_directory
 
-def get_markdown_files(directory):
+def get_special_files(directory):
     md_files = []
     for root, dirs, files in os.walk(directory):
         for file in files:
-            if file.endswith('.md'):
+            if file.endswith(('.md', '.sh')):
                 full_path = os.path.join(root, file)
                 md_files.append(full_path)
     return md_files
 
-def read_and_process_markdown_files(md_files):
+def process_special_files(md_files):
     contents = {}
     for file_path in md_files:
         with open(file_path, 'r', encoding='utf-8') as file:
@@ -39,7 +40,7 @@ def read_and_process_markdown_files(md_files):
 
 def create_markdown_dataframe(markdown_contents):
     # Create a DataFrame from markdown_contents dictionary
-    df = pd.DataFrame(list(markdown_contents.items()), columns=['file_path', 'class_info'])
+    df = pd.DataFrame(list(markdown_contents.items()), columns=['file_path', 'source_code'])
     # Add placeholder "empty" for the other necessary columns
     for col in ['class_name', 'constructor_declaration', 'method_declarations', 'references']:
         df[col] = "empty"
@@ -58,17 +59,23 @@ class Method(LanceModel):
     name: str
     doc_comment: str
     source_code: str
-    llm_comments: str
     references: str
 
 class Class(LanceModel):
-    class_info: str = model.SourceField()
+    source_code: str = model.SourceField()
     class_embeddings: Vector(model.ndims()) = model.VectorField()
     file_path: str
     class_name: str
     constructor_declaration: str
     method_declarations: str
     references: str
+
+def clip_text_to_max_tokens(text, max_tokens, encoding_name='cl100k_base'):
+    encoding = tiktoken.get_encoding(encoding_name)
+    tokens = encoding.encode(text)
+    if len(tokens) > max_tokens:
+        tokens = tokens[:max_tokens]
+    return encoding.decode(tokens)
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -81,8 +88,8 @@ if __name__ == "__main__":
     method_data_file = os.path.join(input_directory, "method_data.csv")
     class_data_file = os.path.join(input_directory, "class_data.csv")
 
-    md_files = get_markdown_files(codebase_path)
-    markdown_contents = read_and_process_markdown_files(md_files)
+    special_files = get_special_files(codebase_path)
+    special_contents = process_special_files(special_files)
 
     method_data = pd.read_csv(method_data_file)
     class_data = pd.read_csv(class_data_file)
@@ -99,7 +106,6 @@ if __name__ == "__main__":
     try:
         table = db.create_table(table_name + "_method", schema=Method, mode="overwrite")
 
-        # Concatenate llm_comments and source_code fields
         method_data['code'] = method_data['source_code']
         null_rows = method_data.isnull().any(axis=1)
 
@@ -121,25 +127,25 @@ if __name__ == "__main__":
             print("No null values found in class_data.")
 
         # row wise 
-        class_data['class_info'] = class_data.apply(lambda row: "File: " + row['file_path'] + "\n\n" +
+        class_data['source_code'] = class_data.apply(lambda row: "File: " + row['file_path'] + "\n\n" +
                                                         "Class: " + row['class_name'] + "\n\n" +
-                                                        "Source Code:\n" + row['source_code'] + "\n\n", axis=1)
+                                                        "Source Code:\n" + 
+                                                        clip_text_to_max_tokens(row['source_code'], 8000) + "\n\n", axis=1)
 
         # TODO a misc content table is possible? where i dump other stuff like text files, markdown, config files, toml files etc.
         # print(markdown_contents)
         # class_table.add(markdown_contents) 
         # add after something because chance class_data may be empty
         if len(class_data) == 0:
-            columns = ['class_info', 'file_path', 'class_name', 'constructor_declaration', 'method_declarations', 'references']
+            columns = ['source_code', 'file_path', 'class_name', 'constructor_declaration', 'method_declarations', 'references']
             empty_data = {col: ["empty"] for col in columns}
 
             class_data = pd.DataFrame(empty_data)
             
         class_table.add(class_data)
-        class_table.add(create_markdown_dataframe(markdown_contents))
+        class_table.add(create_markdown_dataframe(special_contents))
 
         print("Embedded method data successfully")
-
         print("Embedded class data successfully")
 
     except Exception as e:

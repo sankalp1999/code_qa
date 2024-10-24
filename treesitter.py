@@ -84,11 +84,13 @@ class TreesitterMethodNode:
         doc_comment: str,
         method_source_code: str,
         node,
+        class_name: str = None
     ):
         self.name = name
         self.doc_comment = doc_comment
         self.method_source_code = method_source_code
         self.node = node
+        self.class_name = class_name
 
 class TreesitterClassNode:
     def __init__(
@@ -127,7 +129,7 @@ class Treesitter(ABC):
         class_results = []
         method_results = []
 
-        # Extract classes
+        class_name_by_node = {}
         class_captures = self.class_query.captures(root_node)
         class_nodes = []
         for node, capture_name in class_captures:
@@ -135,21 +137,30 @@ class Treesitter(ABC):
                 class_name = node.text.decode()
                 class_node = node.parent
                 logging.info(f"Found class: {class_name}")
-                # Extract methods inside the class
+                class_name_by_node[class_node.id] = class_name
                 method_declarations = self._extract_methods_in_class(class_node)
                 class_results.append(TreesitterClassNode(class_name, method_declarations, class_node))
                 class_nodes.append(class_node)
 
-        # Extract methods outside of classes (if applicable)
         method_captures = self.method_query.captures(root_node)
         for node, capture_name in method_captures:
             if capture_name in ['method.name', 'function.name']:
                 method_name = node.text.decode()
                 method_node = node.parent
-                if not any(self._is_descendant_of(method_node, class_node) for class_node in class_nodes):
-                    doc_comment = self._extract_doc_comment(method_node)
-                    method_source_code = method_node.text.decode()
-                    method_results.append(TreesitterMethodNode(method_name, doc_comment, method_source_code, method_node))
+                method_source_code = method_node.text.decode()
+                doc_comment = self._extract_doc_comment(method_node)
+                parent_class_name = None
+                for class_node in class_nodes:
+                    if self._is_descendant_of(method_node, class_node):
+                        parent_class_name = class_name_by_node[class_node.id]
+                        break
+                method_results.append(TreesitterMethodNode(
+                    name=method_name,
+                    doc_comment=doc_comment,
+                    method_source_code=method_source_code,
+                    node=method_node,
+                    class_name=parent_class_name
+                ))
 
         return class_results, method_results
 

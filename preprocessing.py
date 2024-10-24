@@ -2,46 +2,12 @@ import os
 import sys
 from treesitter import Treesitter, LanguageEnum
 from collections import defaultdict
-import re
 import csv
 from typing import List, Dict
 from tree_sitter import Node
 from tree_sitter_languages import get_language, get_parser
 
-class CodeInfo:
-    def __init__(self, name: str, method_key: str, file_path: str, references: List[Dict[str, str]]):
-        self.name = name
-        self.method_key = method_key
-        self.file_path = file_path
-        self.references = references
-
-def get_language_from_extension(file_ext):
-    FILE_EXTENSION_LANGUAGE_MAP = {
-        ".java": LanguageEnum.JAVA,
-        ".py": LanguageEnum.PYTHON,
-        ".js": LanguageEnum.JAVASCRIPT,
-        ".rs": LanguageEnum.RUST,
-        # Add other extensions and languages as needed
-    }
-    return FILE_EXTENSION_LANGUAGE_MAP.get(file_ext)
-
-def load_files(codebase_path):
-    file_list = []
-    for root, _, files in os.walk(codebase_path):
-        if any(blacklist in root for blacklist in BLACKLIST_DIR):
-            continue
-        for file in files:
-            file_ext = os.path.splitext(file)[1]
-            if file_ext in WHITELIST_FILES:
-                if file not in BLACKLIST_FILES and file != "docker-compose.yml":
-                    file_path = os.path.join(root, file)
-                    language = get_language_from_extension(file_ext)
-                    if language:
-                        file_list.append((file_path, language))
-                    else:
-                        print(f"Unsupported file extension {file_ext} in file {file_path}. Skipping.")
-    return file_list
-
+# Define your BLACKLIST_DIR, WHITELIST_FILES, NODE_TYPES, and REFERENCE_IDENTIFIERS here
 BLACKLIST_DIR = [
     "__pycache__",
     ".pytest_cache",
@@ -61,7 +27,7 @@ BLACKLIST_DIR = [
     ".aws-sam",
     ".terraform"
 ]
-WHITELIST_FILES = [".java", ".py", ".js", ".rs", ".md"]  # Add other extensions as needed
+WHITELIST_FILES = [".java", ".py", ".js", ".rs"]
 BLACKLIST_FILES = ["docker-compose.yml"]
 
 NODE_TYPES = {
@@ -79,7 +45,7 @@ NODE_TYPES = {
     },
     "javascript": {
         "class": "class_declaration",
-        "method": "function_declaration"
+        "method": "method_definition"
     },
     # Add other languages as needed
 }
@@ -108,181 +74,144 @@ REFERENCE_IDENTIFIERS = {
     # Add other languages as needed
 }
 
-def find_class_references(file_path: str, class_ref_node_type, class_name: str, ast: Node) -> List[Dict[str, str]]:
+def get_language_from_extension(file_ext):
+    FILE_EXTENSION_LANGUAGE_MAP = {
+        ".java": LanguageEnum.JAVA,
+        ".py": LanguageEnum.PYTHON,
+        ".js": LanguageEnum.JAVASCRIPT,
+        ".rs": LanguageEnum.RUST,
+        # Add other extensions and languages as needed
+    }
+    return FILE_EXTENSION_LANGUAGE_MAP.get(file_ext)
+
+def load_files(codebase_path):
+    file_list = []
+    for root, dirs, files in os.walk(codebase_path):
+        dirs[:] = [d for d in dirs if d not in BLACKLIST_DIR]
+        for file in files:
+            file_ext = os.path.splitext(file)[1]
+            if file_ext in WHITELIST_FILES:
+                if file not in BLACKLIST_FILES:
+                    file_path = os.path.join(root, file)
+                    language = get_language_from_extension(file_ext)
+                    if language:
+                        file_list.append((file_path, language))
+                    else:
+                        print(f"Unsupported file extension {file_ext} in file {file_path}. Skipping.")
+    return file_list
+
+def find_class_references_in_ast(file_path, ast, class_name, language):
     references = []
-    tree = ast
-    stack = [tree.root_node]
+    stack = [ast.root_node]
     while stack:
         node = stack.pop()
-        if node.type == class_ref_node_type and node.text.decode() == class_name:
-            reference = {
-                "file": file_path,
-                "line": node.start_point[0],
-                "column": node.start_point[1],
-                "text": node.parent.text.decode()
-            }
-            references.append(reference)
+        if node.type == 'identifier' and node.text.decode() == class_name:
+            # Check the context of the identifier to reduce false positives
+            parent = node.parent
+            if parent and parent.type in ['type', 'class_type', 'object_creation_expression']:
+                reference = {
+                    "file": file_path,
+                    "line": node.start_point[0] + 1,
+                    "column": node.start_point[1] + 1,
+                    "text": parent.text.decode() if parent else node.text.decode()
+                }
+                references.append(reference)
         stack.extend(node.children)
     return references
 
-def find_method_references(file_path: str, method_ref_node_type, method_name: str, ast: Node, child_field_name) -> List[Dict[str, str]]:
+def find_method_references_in_ast(file_path, ast, method_name, language):
     references = []
-
-    def traverse_node(node):
-        if node.type == method_ref_node_type:
-            identifier = node.child_by_field_name(child_field_name)
-            if identifier and identifier.text.decode() == method_name:
+    stack = [ast.root_node]
+    while stack:
+        node = stack.pop()
+        if node.type == 'identifier' and node.text.decode() == method_name:
+            # Check if the identifier is part of a method call
+            parent = node.parent
+            if parent and parent.type in ['call_expression', 'method_invocation']:
                 reference = {
                     "file": file_path,
-                    "line": node.start_point[0],
-                    "column": node.start_point[1],
-                    "text": node.text.decode()
+                    "line": node.start_point[0] + 1,
+                    "column": node.start_point[1] + 1,
+                    "text": parent.text.decode()
                 }
                 references.append(reference)
-        for child in node.children:
-            traverse_node(child)
-
-    traverse_node(ast.root_node)
+        stack.extend(node.children)
     return references
-
-def extract_code(file_path: str, parser, node_type: str, method) -> List[CodeInfo]:
-    with open(file_path, "r") as file:
-        code = file.read()
-        tree = parser.parse(bytes(code, "utf8"))
-        infos = []
-        
-        def traverse_node(node):
-            if node.type == node_type:
-                if method:
-                    code_lines = node.text.decode().split("\n")
-                    if code_lines:
-                        method_key = "\n".join(code_lines[:2]) 
-                else:
-                    method_key = node.text.decode()    
-                name_node = node.child_by_field_name("name")
-                if name_node:
-                    name = name_node.text.decode()
-                    infos.append(CodeInfo(name, method_key, file_path, []))
-                
-            for child in node.children:
-                traverse_node(child)
-        
-        traverse_node(tree.root_node)
-        return infos
-
-def process_codebase(file_list, language: str):
-    parser = get_parser(language)
-    class_infos = []
-    method_infos = []
-    file_asts = {}
-
-    class_node_type = NODE_TYPES[language]["class"]
-    method_node_type = NODE_TYPES[language]["method"]
-
-    class_ref_node_type = REFERENCE_IDENTIFIERS[language]["class"]
-    method_ref_node_type = REFERENCE_IDENTIFIERS[language]["method"]
-    child_field_name = REFERENCE_IDENTIFIERS[language]["child_field_name"]
-
-    for file_path in file_list:
-        if file_path not in file_asts:
-            class_infos_in_file = extract_code(file_path, parser, class_node_type, method=False)
-            class_infos.extend(class_infos_in_file)
-            file_asts[file_path] = parser.parse(bytes(open(file_path, "r").read(), "utf8"))
-
-    for class_info in class_infos:
-        references = []
-        for ref_file_path, ast in file_asts.items():
-            if ref_file_path != class_info.file_path:
-                references.extend(find_class_references(ref_file_path, class_ref_node_type, class_info.name, ast))
-        class_info.references = references
-
-    for file_path in file_list:
-        method_infos_in_file = extract_code(file_path, parser, method_node_type, method=True)
-        method_infos.extend(method_infos_in_file)
-
-    for method_info in method_infos:
-        references = []
-        for ref_file_path, ast in file_asts.items():
-            if ref_file_path != method_info.file_path:
-                references.extend(find_method_references(ref_file_path, method_ref_node_type, method_info.name, ast, child_field_name))
-        method_info.references = references
-
-    return class_infos, method_infos
-
-def get_references(file_list, codebase_language):
-    class_infos, method_infos = process_codebase(file_list, codebase_language)
-
-    class_infos_dict = {class_info.name: class_info for class_info in class_infos}
-    method_infos_dict = {method_info.name: method_info for method_info in method_infos}
-
-    return class_infos_dict, method_infos_dict
 
 def parse_code_files(file_list):
     class_data = []
     method_data = []
 
-    # Group files by language
+    all_class_names = set()
+    all_method_names = set()
+
     files_by_language = defaultdict(list)
     for file_path, language in file_list:
         files_by_language[language].append(file_path)
 
-    # Dictionaries to collect class and method infos
-    class_infos_dict = {}
-    method_infos_dict = {}
-
     for language, files in files_by_language.items():
-        # Process files for this language
-        class_infos, method_infos = get_references(files, language.value)
+        treesitter_parser = Treesitter.create_treesitter(language)
+        for file_path in files:
+            with open(file_path, "r", encoding="utf-8") as file:
+                code = file.read()
+                file_bytes = code.encode()
+                class_nodes, method_nodes = treesitter_parser.parse(file_bytes)
 
-        # Build dictionaries with keys including language
-        class_infos_dict.update({(language, class_info.name): class_info for class_info in class_infos})
-        method_infos_dict.update({(language, method_info.name): method_info for method_info in method_infos})
+                # Process class nodes
+                for class_node in class_nodes:
+                    class_name = class_node.name
+                    all_class_names.add(class_name)
+                    class_data.append({
+                        "file_path": file_path,
+                        "class_name": class_name,
+                        "constructor_declaration": "",  # Extract if needed
+                        "method_declarations": "\n-----\n".join(class_node.method_declarations) if class_node.method_declarations else "",
+                        "source_code": class_node.source_code,
+                        "references": []  # Will populate later
+                    })
+
+                # Process method nodes
+                for method_node in method_nodes:
+                    method_name = method_node.name
+                    all_method_names.add(method_name)
+                    method_data.append({
+                        "file_path": file_path,
+                        "class_name": method_node.class_name if method_node.class_name else "",
+                        "name": method_name,
+                        "doc_comment": method_node.doc_comment,
+                        "source_code": method_node.method_source_code,
+                        "references": []  # Will populate later
+                    })
+
+    return class_data, method_data, all_class_names, all_method_names
+
+def find_references(file_list, class_names, method_names):
+    references = {'class': defaultdict(list), 'method': defaultdict(list)}
+    files_by_language = defaultdict(list)
 
     for file_path, language in file_list:
-        with open(file_path, "r", encoding="utf-8") as file:
-            file_bytes = file.read().encode()
-            treesitter_parser = Treesitter.create_treesitter(language)
-            class_nodes, method_nodes = treesitter_parser.parse(file_bytes)
+        files_by_language[language].append(file_path)
 
-            for class_node in class_nodes:
-                class_name = class_node.name
-                references = []
+    for language, files in files_by_language.items():
+        treesitter_parser = Treesitter.create_treesitter(language)
+        for file_path in files:
+            with open(file_path, "r", encoding="utf-8") as file:
+                code = file.read()
+                file_bytes = code.encode()
+                tree = treesitter_parser.parser.parse(file_bytes)
+                ast = tree
 
-                # Get the references for the current class from the class_infos_dict
-                class_info_key = (language, class_name)
-                if class_info_key in class_infos_dict:
-                    class_info = class_infos_dict[class_info_key]
-                    references = class_info.references
+                # Find class references
+                for class_name in class_names:
+                    class_refs = find_class_references_in_ast(file_path, ast, class_name, language.value)
+                    references['class'][class_name].extend(class_refs)
 
-                class_data.append({
-                    "file_path": file_path,
-                    "class_name": class_name,
-                    "constructor_declaration": "",
-                    "method_declarations": "\n-----\n".join(class_node.method_declarations) if class_node.method_declarations else "",
-                    "source_code": class_node.source_code,
-                    "references": references
-                })
+                # Find method references
+                for method_name in method_names:
+                    method_refs = find_method_references_in_ast(file_path, ast, method_name, language.value)
+                    references['method'][method_name].extend(method_refs)
 
-            for method_node in method_nodes:
-                name = method_node.name
-                references = []
-
-                # Get the references for the current method from the method_infos_dict
-                method_info_key = (language, name)
-                if method_info_key in method_infos_dict:
-                    method_info = method_infos_dict[method_info_key]
-                    references = method_info.references
-
-                method_data.append({
-                    "file_path": file_path,
-                    "class_name": "",  # Placeholder for class name
-                    "name": method_node.name,
-                    "doc_comment": method_node.doc_comment,
-                    "source_code": method_node.method_source_code,
-                    "references": references
-                })
-
-    return class_data, method_data
+    return references
 
 def create_output_directory(codebase_path):
     normalized_path = os.path.normpath(os.path.abspath(codebase_path))
@@ -298,7 +227,8 @@ def write_class_data_to_csv(class_data, output_directory):
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for row in class_data:
-            row["references"] = ",".join(map(str, row["references"]))
+            references = row.get("references", [])
+            row["references"] = "; ".join([f"{ref['file']}:{ref['line']}:{ref['column']}" for ref in references])
             writer.writerow(row)
     print(f"Class data written to {output_file}")
 
@@ -309,7 +239,8 @@ def write_method_data_to_csv(method_data, output_directory):
         writer = csv.DictWriter(file, fieldnames=fieldnames)
         writer.writeheader()
         for row in method_data:
-            row["references"] = ",".join(map(str, row["references"]))
+            references = row.get("references", [])
+            row["references"] = "; ".join([f"{ref['file']}:{ref['line']}:{ref['column']}" for ref in references])
             writer.writerow(row)
     print(f"Method data written to {output_file}")
 
@@ -320,7 +251,28 @@ if __name__ == "__main__":
     codebase_path = sys.argv[1]
 
     files = load_files(codebase_path)
-    class_data, method_data = parse_code_files(files)
+    class_data, method_data, class_names, method_names = parse_code_files(files)
+
+    # Find references
+    references = find_references(files, class_names, method_names)
+
+    # Map references back to class and method data
+    class_data_dict = {cd['class_name']: cd for cd in class_data}
+    method_data_dict = {(md['class_name'], md['name']): md for md in method_data}
+
+    for class_name, refs in references['class'].items():
+        if class_name in class_data_dict:
+            class_data_dict[class_name]['references'] = refs
+
+    for method_name, refs in references['method'].items():
+        # Find all methods with this name (since methods might have the same name in different classes)
+        for key in method_data_dict:
+            if key[1] == method_name:
+                method_data_dict[key]['references'] = refs
+
+    # Convert dictionaries back to lists
+    class_data = list(class_data_dict.values())
+    method_data = list(method_data_dict.values())
 
     output_directory = create_output_directory(codebase_path)
     write_class_data_to_csv(class_data, output_directory)
