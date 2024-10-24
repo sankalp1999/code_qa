@@ -2,13 +2,14 @@ from flask import Flask, render_template, request, session
 import os
 import sys
 import lancedb
+from lancedb.rerankers import AnswerdotaiRerankers
 import re
 import redis
 import uuid
-import loguru as logging
+import logging
 import markdown
 from openai import OpenAI
-from lancedb.rerankers import AnswerdotaiRerankers
+
 from prompts import (
     HYDE_SYSTEM_PROMPT,
     HYDE_V2_SYSTEM_PROMPT,
