@@ -92,7 +92,7 @@ client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 #         **kwargs,
 #     ):
 
-reranker = AnswerdotaiRerankers()
+reranker = AnswerdotaiRerankers(column="source_code")
 
 # Replace groq_hyde function
 def openai_hyde(query):
@@ -101,11 +101,11 @@ def openai_hyde(query):
         messages=[
             {
                 "role": "system",
-                "content": HYDE_SYSTEM_PROMPT.format(language=language)
+                "content": HYDE_SYSTEM_PROMPT
             },
             {
                 "role": "user",
-                "content": f"Help predict the answer to the query: {query} in the programming language: {language}.",
+                "content": f"Help predict the answer to the query: {query}",
             }
         ]
     )
@@ -118,11 +118,11 @@ def openai_hyde_v2(query, temp_context, hyde_query):
         messages=[
             {
                 "role": "system",
-                "content": HYDE_V2_SYSTEM_PROMPT.format(language=language, query=query, temp_context=temp_context)
+                "content": HYDE_V2_SYSTEM_PROMPT.format(query=query, temp_context=temp_context)
             },
             {
                 "role": "user",
-                "content": f"Predict the answer to the query: {hyde_query} in the context of {language}.",
+                "content": f"Predict the answer to the query: {hyde_query}",
             }
         ]
     )
@@ -173,7 +173,7 @@ def generate_context(query):
     method_docs = method_table.search(hyde_query).limit(5).to_pandas()
     class_docs = class_table.search(hyde_query).limit(5).to_pandas()
 
-    temp_context = '\n'.join(method_docs['code'] + '\n'.join(class_docs['class_info']) )
+    temp_context = '\n'.join(method_docs['code'] + '\n'.join(class_docs['source_code']) )
 
     hyde_query_v2 = openai_query_for_references(query, temp_context)
 
@@ -187,7 +187,7 @@ def generate_context(query):
     methods_combined = "\n\n".join(f"File: {doc['file_path']}\nCode:\n{doc['code']}" for doc in top_3_methods)
 
     top_3_classes = class_docs[:3]
-    classes_combined = "\n\n".join(f"File: {doc['file_path']}\nClass Info:\n{doc['class_info']} References: \n{doc['references']}  \n END OF ROW {i}" for i, doc in enumerate(top_3_classes))
+    classes_combined = "\n\n".join(f"File: {doc['file_path']}\nClass Info:\n{doc['source_code']} References: \n{doc['references']}  \n END OF ROW {i}" for i, doc in enumerate(top_3_classes))
 
 
     app.logger.info("Classes Combined:")
@@ -259,14 +259,13 @@ def home():
     return render_template('query_form.html', results=results)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        print("Usage: python app.py <language> <codebase_path>")
+    if len(sys.argv) != 2:
+        print("Usage: python app.py <codebase_path>")
         sys.exit(1)
 
-    language = sys.argv[1]
-    codebase_path = sys.argv[2]
+    codebase_path = sys.argv[1]
     
     # Setup database
     method_table, class_table = setup_database(codebase_path)
     
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=5001)
