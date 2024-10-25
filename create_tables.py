@@ -5,6 +5,9 @@ import lancedb
 from lancedb.embeddings import EmbeddingFunctionRegistry
 from lancedb.pydantic import LanceModel, Vector
 import tiktoken
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def get_name_and_input_dir(codebase_path):
     # Normalize and get the absolute path
@@ -47,13 +50,23 @@ def create_markdown_dataframe(markdown_contents):
     return df
 
 
-MODEL_NAME = "text-embedding-3-large"
-registry = EmbeddingFunctionRegistry.get_instance()
-model = registry.get("openai").create(name=MODEL_NAME, max_retries=2)
+# Check for environment variables and select embedding model
+if os.getenv("JINA_API_KEY"):
+    MODEL_NAME = "jina-embeddings-v3"
+    registry = EmbeddingFunctionRegistry.get_instance()
+    model = registry.get("jina").create(name=MODEL_NAME, max_retries=2)
+    EMBEDDING_DIM = 1024  # Jina's dimension
+    MAX_TOKENS = 4000   # Jina uses a different tokenizer so it's hard to predict the number of tokens
+else:
+    MODEL_NAME = "text-embedding-3-large"
+    registry = EmbeddingFunctionRegistry.get_instance()
+    model = registry.get("openai").create(name=MODEL_NAME, max_retries=2)
+    EMBEDDING_DIM = 1024  # OpenAI's dimension
+    MAX_TOKENS = 8000    # OpenAI's token limit
 
 class Method(LanceModel):
     code: str = model.SourceField()
-    method_embeddings: Vector(model.ndims()) = model.VectorField()
+    method_embeddings: Vector(EMBEDDING_DIM) = model.VectorField()
     file_path: str
     class_name: str
     name: str
@@ -63,7 +76,7 @@ class Method(LanceModel):
 
 class Class(LanceModel):
     source_code: str = model.SourceField()
-    class_embeddings: Vector(model.ndims()) = model.VectorField()
+    class_embeddings: Vector(EMBEDDING_DIM) = model.VectorField()
     file_path: str
     class_name: str
     constructor_declaration: str
@@ -130,7 +143,7 @@ if __name__ == "__main__":
         class_data['source_code'] = class_data.apply(lambda row: "File: " + row['file_path'] + "\n\n" +
                                                         "Class: " + row['class_name'] + "\n\n" +
                                                         "Source Code:\n" + 
-                                                        clip_text_to_max_tokens(row['source_code'], 8000) + "\n\n", axis=1)
+                                                        clip_text_to_max_tokens(row['source_code'], MAX_TOKENS) + "\n\n", axis=1)
 
         # TODO a misc content table is possible? where i dump other stuff like text files, markdown, config files, toml files etc.
         # print(markdown_contents)

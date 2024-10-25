@@ -10,3 +10,4 @@ markdown
 tiktoken
 rerankers
 rerankers[transformers]
+python-dotenv

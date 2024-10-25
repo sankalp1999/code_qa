@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, jsonify
 import os
 import sys
 import lancedb
@@ -9,6 +9,11 @@ import uuid
 import logging
 import markdown
 from openai import OpenAI
+import json
+from dotenv import load_dotenv
+from redis import ConnectionPool
+
+load_dotenv()
 
 from prompts import (
     HYDE_SYSTEM_PROMPT,
@@ -23,6 +28,7 @@ CONFIG = {
     'REDIS_HOST': 'localhost',
     'REDIS_PORT': 6379,
     'REDIS_DB': 0,
+    'REDIS_POOL_SIZE': 10,  # Add pool size configuration
     'LOG_FILE': 'app.log',
     'LOG_FORMAT': '%(asctime)s - %(message)s',
     'LOG_DATE_FORMAT': '%d-%b-%y %H:%M:%S'
@@ -61,12 +67,16 @@ def setup_app():
     # Setup logging
     app.logger = setup_logging(app.config)
     
-    # Redis setup
-    app.redis_client = redis.Redis(
+    # Redis connection pooling setup
+    app.redis_pool = ConnectionPool(
         host=app.config['REDIS_HOST'],
         port=app.config['REDIS_PORT'],
-        db=app.config['REDIS_DB']
+        db=app.config['REDIS_DB'],
+        max_connections=app.config['REDIS_POOL_SIZE']
     )
+    
+    # Create Redis client using the connection pool
+    app.redis_client = redis.Redis(connection_pool=app.redis_pool)
     
     # Markdown filter
     @app.template_filter('markdown')
@@ -207,54 +217,48 @@ def generate_context(query):
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
-    results = None
     if request.method == 'POST':
-        query = request.form['query']
-        action = request.form['action']
-        
-        user_id = session.get('user_id')
-        if user_id is None:
-            user_id = str(uuid.uuid4())
-            session['user_id'] = user_id
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # This is an AJAX request
+            data = request.get_json()
+            query = data['query']
+            user_id = session.get('user_id')
+            if user_id is None:
+                user_id = str(uuid.uuid4())
+                session['user_id'] = user_id
 
-        if action == 'Context':
-            # Context generation
-            context = generate_context(query)
-            app.logger.info("-----context------")
-            app.logger.info(f"Context length: {len(process_input(context))}")
-            app.logger.info(context)
-            app.logger.info("-----context_end-----")
-
-        elif action == 'Chat':
-            # Retrieve context
-            redis_key = f"user:{user_id}:chat_history"
-            context = app.redis_client.get(redis_key)
-            app.logger.info("INSIDE CHAT CONTEXT: %s", context)
-            if context is None:
-                context = ""
+            if '@codebase' in query:
+                query = query.replace('@codebase', '').strip()
+                context = generate_context(query)
+                app.logger.info("Generated context for query with @context.")
+                app.redis_client.set(f"user:{user_id}:chat_context", context)
             else:
-                app.logger.info("Found context")
-                context = context.decode()
-        
-        response = openai_chat(query, context[:12000])  # token rate limit is problematic
+                context = app.redis_client.get(f"user:{user_id}:chat_context")
+                if context is None:
+                    context = ""
+                else:
+                    context = context.decode()
 
-        combined_response = f"Query: {query} \n\n Response: {response}"
+            response = openai_chat(query, context[:12000])  # Adjust as needed
 
+            # Store the conversation history
+            redis_key = f"user:{user_id}:responses"
+            combined_response = {'query': query, 'response': response}
+            app.redis_client.rpush(redis_key, json.dumps(combined_response))
+
+            # Return the bot's response as JSON
+            return jsonify({'response': response})
+
+    # For GET requests and non-AJAX POST requests, render the template as before
+    # Retrieve the conversation history to display
+    user_id = session.get('user_id')
+    if user_id:
         redis_key = f"user:{user_id}:responses"
-        app.redis_client.rpush(redis_key, combined_response)
-
-        # Update chat history in Redis
-        new_chat_history = (context + f"\nQuery: {query}\nResponse: {response}").strip()
-        app.redis_client.set(f"user:{user_id}:chat_history", new_chat_history)
-
-        # Retrieve the last 3 responses for the current user from Redis
-        responses = app.redis_client.lrange(redis_key, -3, -1)
-        responses = [response.decode() for response in responses]
-
-        results = {
-            'response': response,
-            'responses': responses
-        }
+        responses = app.redis_client.lrange(redis_key, -5, -1)
+        responses = [json.loads(resp.decode()) for resp in responses]
+        results = {'responses': responses}
+    else:
+        results = None
 
     return render_template('query_form.html', results=results)
 

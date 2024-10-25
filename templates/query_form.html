@@ -4,114 +4,312 @@
     <meta charset="UTF-8">
     <title>CodeQA</title>
     <style>
+        /* Lo-fi aesthetic styles */
         body {
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            font-family: 'Courier New', monospace;
             margin: 0;
-            padding: 20px;
-            background-color: #F0EFE6;
-            color: #333;
+            padding: 0;
+            background-color: #e6e6e6;
+            background-image: 
+                linear-gradient(90deg, #00000005 1px, transparent 1px),
+                linear-gradient(#00000005 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: #444;
             display: flex;
             flex-direction: column;
             align-items: center;
+            min-height: 100vh;
+            position: relative;
+            padding-bottom: 80px; /* Space for fixed input area */
         }
 
         h1 {
             color: #333;
             text-align: center;
+            margin: 20px 0;
+            font-size: 2.5rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border: 3px solid #333;
+            padding: 10px 20px;
+            background: #fff;
+            box-shadow: 3px 3px 0 #333;
         }
 
-        form {
+        .container {
+            flex: 1;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            width: 100%;
+            max-width: 1200px; /* Increased from 800px */
+            padding: 0 20px;
+            position: relative;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+            padding: 20px;
+            border: 2px solid #333;
+            border-radius: 0;
             margin-bottom: 20px;
+            box-shadow: 4px 4px 0 #333;
+            height: calc(100vh - 200px); /* Adjusted height to account for header and fixed input */
+        }
+
+        .message {
+            max-width: 70%;
+            padding: 15px;
+            margin: 8px 0;
+            border-radius: 0;
+            word-wrap: break-word;
+            line-height: 1.5;
+            border: 2px solid #333;
+            box-shadow: 2px 2px 0 #333;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: #b8c6db;
+            border-color: #333;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background-color: #f5f5f5;
+            border-color: #333;
+        }
+
+        .typing-indicator {
+            align-self: flex-start;
+            background-color: #f5f5f5;
+            border: 2px solid #333;
+            box-shadow: 2px 2px 0 #333;
+            padding: 15px;
+            margin: 8px 0;
+            font-style: italic;
+            color: #888;
+        }
+
+        .input-area {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            background-color: #e6e6e6;
+            border-top: 2px solid #333;
+            z-index: 1000;
+        }
+
+        .input-area form {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            gap: 10px;
         }
 
         input[type="text"] {
-            font-family: "SF Pro", "Segoe UI", Arial, sans-serif;
+            flex: 1;
             padding: 15px;
-            width: 800px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 10px;
+            border-radius: 0;
+            border: 2px solid #333;
             font-size: 16px;
+            font-family: 'Courier New', monospace;
+            background-color: #fff;
+            box-shadow: 2px 2px 0 #333;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #666;
+            box-shadow: 3px 3px 0 #666;
         }
 
         input[type="text"]::placeholder {
-            color: #999;
+            color: #888;
+            font-style: italic;
         }
 
-        input[type="submit"] {
-            padding: 15px 30px;
-            margin: 5px;
-            cursor: pointer;
-            background-color: #C2B280;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-weight: bold;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-            transition: all 0.3s ease;
-            font-size: 16px;
-        }
-
-        input[type="submit"]:hover {
-            background-color: #A39264;
-            transform: translateY(-1px);
-            box-shadow: 0 7px 14px rgba(0, 0, 0, 0.1), 0 3px 6px rgba(0, 0, 0, 0.08);
-        }
-
-        .results {
-            background-color: white;
-            padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px 0 rgba(0,0,0,0.1);
-            width: 800px;
-        }
-
-        .response {
-            margin-bottom: 20px;
+        button[type="submit"] {
             padding: 15px;
-            background-color: #f9f9f9;
-            border-radius: 5px;
+            cursor: pointer;
+            background-color: #333;
+            color: white;
+            border: 2px solid #333;
+            border-radius: 0;
+            font-size: 20px;
+            width: 50px;
+            height: 50px;
+            text-align: center;
+            line-height: 20px;
+            box-shadow: 2px 2px 0 #666;
+            transition: all 0.2s ease;
         }
 
-        .response h4 {
-            margin-top: 0;
-            color: #333;
+        button[type="submit"]:hover {
+            background-color: #444;
+            transform: translate(1px, 1px);
+            box-shadow: 1px 1px 0 #666;
         }
 
-        .response-content {
-            margin-top: 10px;
+        /* Scrollbar styling */
+        .chat-container::-webkit-scrollbar {
+            width: 12px;
         }
 
-        pre {
-            background-color: #f1f1f1;
-            padding: 10px;
-            overflow-x: auto;
+        .chat-container::-webkit-scrollbar-thumb {
+            background-color: #333;
+            border: 2px solid #fff;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background-color: #fff;
+            border: 2px solid #333;
+        }
+
+        /* Retro screen effect */
+        @media (min-resolution: 2dppx) {
+            body::before {
+                content: "";
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: repeating-linear-gradient(
+                    0deg,
+                    rgba(0, 0, 0, 0.02) 0px,
+                    rgba(0, 0, 0, 0.02) 1px,
+                    transparent 1px,
+                    transparent 2px
+                );
+                pointer-events: none;
+                z-index: 1000;
+            }
+        }
+
+        /* Responsive design */
+        @media (max-width: 1240px) {
+            .container {
+                max-width: 100%;
+                padding: 0 15px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+                padding: 8px 16px;
+            }
+            
+            .message {
+                max-width: 85%;
+            }
+            
+            .input-area form {
+                padding: 0 15px;
+            }
         }
     </style>
 </head>
 <body>
     <h1>CodeQA</h1>
-    <form method="POST">
-        <input type="text" id="query" name="query" placeholder="Query" required>
-        <div>
-            <input type="submit" name="action" value="Chat">
-            <input type="submit" name="action" value="Context">
+    <div class="container">
+        <div class="chat-container" id="chat-container">
+            {% if results %}
+                {% for interaction in results.responses %}
+                    <div class="message user-message">
+                        <p>{{ interaction.query | markdown | safe }}</p>
+                    </div>
+                    <div class="message bot-message">
+                        <p>{{ interaction.response | markdown | safe }}</p>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="message bot-message">
+                    <p>Welcome to CodeQA! How can I assist you today?</p>
+                </div>
+            {% endif %}
         </div>
-    </form>
-    {% if results %}
-    <div class="results">
-        {% for response in results.responses | reverse %}
-        <div class="response">
-            <h4>Response {{ loop.revindex }}</h4>
-            <div class="response-content">
-                {{ response | markdown | safe }}
-            </div>
+        <div class="input-area">
+            <form id="chat-form">
+                <input type="text" id="query" name="query" placeholder="Type your message..." required>
+                <button type="submit" name="action" value="Chat">
+                    &#10148;
+                </button>
+            </form>
         </div>
-        {% endfor %}
     </div>
-    {% endif %}
+
+    <!-- Include marked.js for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        document.getElementById('chat-form').addEventListener('submit', function(event) {
+            event.preventDefault(); // Prevent the form from submitting normally
+            const queryInput = document.getElementById('query');
+            const query = queryInput.value;
+            if (query.trim() === '') {
+                return;
+            }
+
+            // Add user's message to the chat container
+            const chatContainer = document.getElementById('chat-container');
+            const userMessageDiv = document.createElement('div');
+            userMessageDiv.classList.add('message', 'user-message');
+            userMessageDiv.innerHTML = '<p>' + query + '</p>';
+            chatContainer.appendChild(userMessageDiv);
+
+            // Scroll to the bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Clear the input field
+            queryInput.value = '';
+
+            // Add typing indicator
+            const typingIndicator = document.createElement('div');
+            typingIndicator.classList.add('typing-indicator');
+            typingIndicator.innerText = 'Thinking...';
+            chatContainer.appendChild(typingIndicator);
+
+            // Scroll to the bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+
+            // Send the query to the server via fetch
+            fetch('/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest'  // Indicate AJAX request
+                },
+                body: JSON.stringify({query: query})
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Remove typing indicator
+                chatContainer.removeChild(typingIndicator);
+
+                // data should contain the bot's response
+                const botMessageDiv = document.createElement('div');
+                botMessageDiv.classList.add('message', 'bot-message');
+                botMessageDiv.innerHTML = '<p>' + marked.parse(data.response) + '</p>';
+                chatContainer.appendChild(botMessageDiv);
+
+                // Scroll to the bottom
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                // Remove typing indicator
+                chatContainer.removeChild(typingIndicator);
+            });
+        });
+    </script>
 </body>
 </html>
