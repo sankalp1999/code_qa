@@ -92,16 +92,7 @@ app = setup_app()
 client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
 
-# This is how it looks like in the source code, so we don't need to pass arguments
-# def __init__(
-#         self,
-#         model_type="colbert",
-#         model_name: str = "answerdotai/answerai-colbert-small-v1",
-#         column: str = "text",
-#         return_score="relevance",
-#         **kwargs,
-#     ):
-
+# Initialize the reranker
 reranker = AnswerdotaiRerankers(column="source_code")
 
 # Replace groq_hyde function
@@ -121,7 +112,6 @@ def openai_hyde(query):
     )
     return chat_completion.choices[0].message.content
 
-# TODO double check this o
 def openai_hyde_v2(query, temp_context, hyde_query):
     chat_completion = client.chat.completions.create(
         model="gpt-4o-mini",
@@ -177,7 +167,7 @@ def process_input(input_text):
     
     return processed_text
 
-def generate_context(query):
+def generate_context(query, rerank=False):
     hyde_query = openai_hyde(query)
 
     method_docs = method_table.search(hyde_query).limit(5).to_pandas()
@@ -190,15 +180,21 @@ def generate_context(query):
     logging.info("-query_v2-")
     logging.info(hyde_query_v2)
 
-    method_docs = method_table.search(hyde_query_v2).rerank(reranker).limit(5).to_list()
-    class_docs = class_table.search(hyde_query_v2).rerank(reranker).limit(5).to_list()
+    method_search = method_table.search(hyde_query_v2)
+    class_search = class_table.search(hyde_query_v2)
+
+    if rerank:
+        method_search = method_search.rerank(reranker)
+        class_search = class_search.rerank(reranker)
+
+    method_docs = method_search.limit(5).to_list()
+    class_docs = class_search.limit(5).to_list()
 
     top_3_methods = method_docs[:3]
     methods_combined = "\n\n".join(f"File: {doc['file_path']}\nCode:\n{doc['code']}" for doc in top_3_methods)
 
     top_3_classes = class_docs[:3]
     classes_combined = "\n\n".join(f"File: {doc['file_path']}\nClass Info:\n{doc['source_code']} References: \n{doc['references']}  \n END OF ROW {i}" for i, doc in enumerate(top_3_classes))
-
 
     app.logger.info("Classes Combined:")
     app.logger.info("-" * 40)
@@ -222,15 +218,19 @@ def home():
             # This is an AJAX request
             data = request.get_json()
             query = data['query']
+            rerank = data.get('rerank', False)  # Extract rerank value
             user_id = session.get('user_id')
             if user_id is None:
                 user_id = str(uuid.uuid4())
                 session['user_id'] = user_id
 
+            # Ensure rerank is a boolean
+            rerank = True if rerank in [True, 'true', 'True', '1'] else False
+
             if '@codebase' in query:
                 query = query.replace('@codebase', '').strip()
-                context = generate_context(query)
-                app.logger.info("Generated context for query with @context.")
+                context = generate_context(query, rerank)
+                app.logger.info("Generated context for query with @codebase.")
                 app.redis_client.set(f"user:{user_id}:chat_context", context)
             else:
                 context = app.redis_client.get(f"user:{user_id}:chat_context")
@@ -239,6 +239,7 @@ def home():
                 else:
                     context = context.decode()
 
+            # Now, apply reranking during the chat response if needed
             response = openai_chat(query, context[:12000])  # Adjust as needed
 
             # Store the conversation history

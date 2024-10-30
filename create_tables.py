@@ -44,6 +44,10 @@ def process_special_files(md_files):
 def create_markdown_dataframe(markdown_contents):
     # Create a DataFrame from markdown_contents dictionary
     df = pd.DataFrame(list(markdown_contents.items()), columns=['file_path', 'source_code'])
+    
+    # Format the source_code with file information and apply clipping
+    df['source_code'] = df.apply(lambda row: f"File: {row['file_path']}\n\nContent:\n{clip_text_to_max_tokens(row['source_code'], MAX_TOKENS)}\n\n", axis=1)
+    
     # Add placeholder "empty" for the other necessary columns
     for col in ['class_name', 'constructor_declaration', 'method_declarations', 'references']:
         df[col] = "empty"
@@ -52,16 +56,18 @@ def create_markdown_dataframe(markdown_contents):
 
 # Check for environment variables and select embedding model
 if os.getenv("JINA_API_KEY"):
+    print("Using Jina")
     MODEL_NAME = "jina-embeddings-v3"
     registry = EmbeddingFunctionRegistry.get_instance()
     model = registry.get("jina").create(name=MODEL_NAME, max_retries=2)
     EMBEDDING_DIM = 1024  # Jina's dimension
     MAX_TOKENS = 4000   # Jina uses a different tokenizer so it's hard to predict the number of tokens
 else:
+    print("Using OpenAI")
     MODEL_NAME = "text-embedding-3-large"
     registry = EmbeddingFunctionRegistry.get_instance()
     model = registry.get("openai").create(name=MODEL_NAME, max_retries=2)
-    EMBEDDING_DIM = 1024  # OpenAI's dimension
+    EMBEDDING_DIM = model.ndims()  # OpenAI's dimension
     MAX_TOKENS = 8000    # OpenAI's token limit
 
 class Method(LanceModel):
@@ -86,9 +92,21 @@ class Class(LanceModel):
 def clip_text_to_max_tokens(text, max_tokens, encoding_name='cl100k_base'):
     encoding = tiktoken.get_encoding(encoding_name)
     tokens = encoding.encode(text)
-    if len(tokens) > max_tokens:
+    original_token_count = len(tokens)
+    
+    print(f"\nOriginal text ({original_token_count} tokens):")
+    print("=" * 50)
+    print(text[:200] + "..." if len(text) > 200 else text)  # Print first 200 chars for preview
+    
+    if original_token_count > max_tokens:
         tokens = tokens[:max_tokens]
-    return encoding.decode(tokens)
+        clipped_text = encoding.decode(tokens)
+        print(f"\nClipped text ({len(tokens)} tokens):")
+        print("=" * 50)
+        print(clipped_text[:200] + "..." if len(clipped_text) > 200 else clipped_text)
+        return clipped_text
+    
+    return text
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -117,7 +135,12 @@ if __name__ == "__main__":
     #     table = db[codebase_path]
     # else:
     try:
-        table = db.create_table(table_name + "_method", schema=Method, mode="overwrite")
+        table = db.create_table(
+            table_name + "_method", 
+            schema=Method, 
+            mode="overwrite",
+            on_bad_vectors='drop'
+        )
 
         method_data['code'] = method_data['source_code']
         null_rows = method_data.isnull().any(axis=1)
@@ -129,9 +152,15 @@ if __name__ == "__main__":
             print("No null values found in method_data.")
 
         # Add the concatenated data to the table
+        print("Adding method data to table")
         table.add(method_data)
     
-        class_table = db.create_table(table_name + "_class", schema=Class, mode="overwrite")
+        class_table = db.create_table(
+            table_name + "_class", 
+            schema=Class, 
+            mode="overwrite",
+            on_bad_vectors='drop'
+        )
         null_rows = class_data.isnull().any(axis=1)
         if null_rows.any():
             print("Null values found in class_data. Replacing with 'empty'.")
@@ -155,8 +184,13 @@ if __name__ == "__main__":
 
             class_data = pd.DataFrame(empty_data)
             
+        print("Adding class data to table")
         class_table.add(class_data)
-        class_table.add(create_markdown_dataframe(special_contents))
+
+        if len(special_contents) > 0:
+            markdown_df = create_markdown_dataframe(special_contents)
+            print(f"Adding {len(markdown_df)} special files to table")
+            class_table.add(markdown_df)
 
         print("Embedded method data successfully")
         print("Embedded class data successfully")
