@@ -100,44 +100,6 @@ def load_files(codebase_path):
                         print(f"Unsupported file extension {file_ext} in file {file_path}. Skipping.")
     return file_list
 
-def find_class_references_in_ast(file_path, ast, class_name, language):
-    references = []
-    stack = [ast.root_node]
-    while stack:
-        node = stack.pop()
-        if node.type == 'identifier' and node.text.decode() == class_name:
-            # Check the context of the identifier to reduce false positives
-            parent = node.parent
-            if parent and parent.type in ['type', 'class_type', 'object_creation_expression']:
-                reference = {
-                    "file": file_path,
-                    "line": node.start_point[0] + 1,
-                    "column": node.start_point[1] + 1,
-                    "text": parent.text.decode() if parent else node.text.decode()
-                }
-                references.append(reference)
-        stack.extend(node.children)
-    return references
-
-def find_method_references_in_ast(file_path, ast, method_name, language):
-    references = []
-    stack = [ast.root_node]
-    while stack:
-        node = stack.pop()
-        if node.type == 'identifier' and node.text.decode() == method_name:
-            # Check if the identifier is part of a method call
-            parent = node.parent
-            if parent and parent.type in ['call_expression', 'method_invocation']:
-                reference = {
-                    "file": file_path,
-                    "line": node.start_point[0] + 1,
-                    "column": node.start_point[1] + 1,
-                    "text": parent.text.decode()
-                }
-                references.append(reference)
-        stack.extend(node.children)
-    return references
-
 def parse_code_files(file_list):
     class_data = []
     method_data = []
@@ -188,6 +150,10 @@ def parse_code_files(file_list):
 def find_references(file_list, class_names, method_names):
     references = {'class': defaultdict(list), 'method': defaultdict(list)}
     files_by_language = defaultdict(list)
+    
+    # Convert names to sets for O(1) lookup
+    class_names = set(class_names)
+    method_names = set(method_names)
 
     for file_path, language in file_list:
         files_by_language[language].append(file_path)
@@ -199,17 +165,36 @@ def find_references(file_list, class_names, method_names):
                 code = file.read()
                 file_bytes = code.encode()
                 tree = treesitter_parser.parser.parse(file_bytes)
-                ast = tree
-
-                # Find class references
-                for class_name in class_names:
-                    class_refs = find_class_references_in_ast(file_path, ast, class_name, language.value)
-                    references['class'][class_name].extend(class_refs)
-
-                # Find method references
-                for method_name in method_names:
-                    method_refs = find_method_references_in_ast(file_path, ast, method_name, language.value)
-                    references['method'][method_name].extend(method_refs)
+                
+                # Single pass through the AST
+                stack = [(tree.root_node, None)]
+                while stack:
+                    node, parent = stack.pop()
+                    
+                    # Check for identifiers
+                    if node.type == 'identifier':
+                        name = node.text.decode()
+                        
+                        # Check if it's a class reference
+                        if name in class_names and parent and parent.type in ['type', 'class_type', 'object_creation_expression']:
+                            references['class'][name].append({
+                                "file": file_path,
+                                "line": node.start_point[0] + 1,
+                                "column": node.start_point[1] + 1,
+                                "text": parent.text.decode()
+                            })
+                        
+                        # Check if it's a method reference
+                        if name in method_names and parent and parent.type in ['call_expression', 'method_invocation']:
+                            references['method'][name].append({
+                                "file": file_path,
+                                "line": node.start_point[0] + 1,
+                                "column": node.start_point[1] + 1,
+                                "text": parent.text.decode()
+                            })
+                    
+                    # Add children to stack with their parent
+                    stack.extend((child, node) for child in node.children)
 
     return references
 
