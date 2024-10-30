@@ -241,10 +241,12 @@
         <div class="input-area">
             <form id="chat-form">
                 <input type="text" id="query" name="query" placeholder="Type your message..." required>
+                <input type="checkbox" id="rerank" name="rerank" value="yes">
+                <label for="rerank">Use Reranking</label>
                 <button type="submit" name="action" value="Chat">
                     &#10148;
                 </button>
-            </form>
+            </form>            
         </div>
     </div>
 
@@ -258,6 +260,9 @@
             if (query.trim() === '') {
                 return;
             }
+
+            const rerankCheckbox = document.getElementById('rerank');
+            const rerank = rerankCheckbox.checked;
 
             // Add user's message to the chat container
             const chatContainer = document.getElementById('chat-container');
@@ -288,7 +293,7 @@
                     'Content-Type': 'application/json',
                     'X-Requested-With': 'XMLHttpRequest'  // Indicate AJAX request
                 },
-                body: JSON.stringify({query: query})
+                body: JSON.stringify({query: query, rerank: rerank})
             })
             .then(response => response.json())
             .then(data => {
