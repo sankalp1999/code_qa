@@ -128,21 +128,6 @@ def openai_hyde_v2(query, temp_context, hyde_query):
     )
     return chat_completion.choices[0].message.content
 
-def openai_query_for_references(query, context):
-    chat_completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": REFERENCES_SYSTEM_PROMPT.format(query=query, context=context)
-            },
-            {
-                "role": "user",
-                "content": f"<query>{query}</query>",
-            }
-        ]
-    )
-    return chat_completion.choices[0].message.content
 
 def openai_chat(query, context):
     chat_completion = client.chat.completions.create(
@@ -175,7 +160,7 @@ def generate_context(query, rerank=False):
 
     temp_context = '\n'.join(method_docs['code'] + '\n'.join(class_docs['source_code']) )
 
-    hyde_query_v2 = openai_query_for_references(query, temp_context)
+    hyde_query_v2 = openai_hyde_v2(query, temp_context)
 
     logging.info("-query_v2-")
     logging.info(hyde_query_v2)

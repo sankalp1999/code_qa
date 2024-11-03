@@ -368,6 +368,12 @@ Output format:
 - Ensure the response is directly usable for further processing or execution.'''
 ```
 
+
+
+The hallucinated query is used to perform an initial embedding search, retrieving the top 5 results from our tables. These results serve as context for a second HyDE query. In the first query, the programming language was not known but with the help of fetched context, the language is most likely known now.
+
+Second HyDE query is more context aware and expands the query with relevant code-specific details.
+
 ```python
 # app.py
 def openai_hyde_v2(query, temp_context, hyde_query):
@@ -386,10 +392,6 @@ def openai_hyde_v2(query, temp_context, hyde_query):
     )
     return chat_completion.choices[0].message.content
 ``` 
-
-The hallucinated query is used to perform an initial embedding search, retrieving the top 5 results from our tables. These results serve as context for a second HyDE query. In the first query, the programming language was not known but with the help of fetched context, the language is most likely known now.
-
-Second HyDE query is more context aware and expands the query with relevant code-specific details.
 
 ```python
 # prompts.py
@@ -414,42 +416,10 @@ Output format: Provide only the enhanced query. Do not include any explanatory t
 By leveraging the LLM's understanding of both code and natural language, it generates an expanded, more contextually-aware query that incorporates relevant code terminology and natural language descriptions. This two-step process helps bridge the semantic gap between the user's natural language query and the codebase's technical content.
 
 
-```python
-def openai_query_for_references(query, context):
-    chat_completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {
-                "role": "system",
-                "content": REFERENCES_SYSTEM_PROMPT.format(query=query, context=context)
-            },
-            {
-                "role": "user",
-                "content": f"<query>{query}</query>",
-            }
-        ]
-    )
-    return chat_completion.choices[0].message.content
-```
 
-```python
-# prompts.py
-REFERENCES_SYSTEM_PROMPT = '''You are an expert software engineer. Given the <query>{query}</query> and <context>{context}</context>, your task is to enhance the query:
+A vector search is performed using the second query and topK results are re-ranked using `answerdotai/answerai-colbert-small-v1` and then relevant meta-data is fetched. 
 
-1. Analyze the query and context thoroughly.
-2. Frame a concise, improved query using keywords from the context that are most relevant to answering the original query.
-3. Include specific code-related details such as method names, class names, and key programming concepts.
-4. If applicable, reference important files like README.md or configuration files.
-5. Add any crucial programming terminology or best practices that might be relevant.
-6. Ensure the enhanced query remains focused while being more descriptive and targeted.
-
-Output format:
-<query>Enhanced query here</query>
-
-Provide only the enhanced query within the tags. Do not include any explanatory text or additional commentary.'''
-```
-
-A vector search is performed using the second query and topK results are re-ranked using cohere reranker v3 and then relevant meta-data is fetched.
+Note that **references are fetched from meta data and combined with code to be feeded as context for the LLM**.
 
 ```python
 ...
@@ -483,14 +453,26 @@ A vector search is performed using the second query and topK results are re-rank
 
 ```
 
-## Possible expansions
-
-- One can use the codebase wide references to make a call graph and use it as a repository map. Pass this as context and it may help the LLM to understand the flow of the repository
-- Use evaluations (this is something I need to learn, maybe [Ragas](https://docs.ragas.io/en/stable/))
 
 ## Conclusion
 
-This concludes this 2 part series of posts. Thanks for reading.
+Throughout this two-part series, we've explored the intricacies of building an effective code question-answering system. In Part 1, we laid the foundation by discussing the importance of proper codebase chunking and semantic code search. In Part 2, we delved deeper into advanced techniques to enhance retrieval quality:
+
+- We explored how LLM-generated comments can bridge the gap between code and natural language queries
+- We discussed the critical considerations for choosing embeddings and vector databases
+- We examined various techniques to improve retrieval accuracy, including:
+  - Hybrid search combining semantic and keyword-based approaches
+  - The power of cross-encoders for reranking results
+  - Using HyDE to bridge the semantic gap between natural language queries and code
+
+This stuff is still evolving fast! While what we've built works well, there are plenty of cool ways we could make it even better, like:
+
+- Implementing repository-wide call graphs for better context understanding
+- Adding evaluations using tools like RAGAS
+
+I hope this series has provided valuable insights into building practical code QA systems. The complete implementation is available on [GitHub](https://github.com/sankalp1999/code_qa), and I encourage you to experiment with these techniques in your own projects.
+
+Thank you for reading!
 
 
 ## References
