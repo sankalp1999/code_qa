@@ -347,7 +347,7 @@ tree = parser.parse(bytes(code, "utf8"))
 
 We traverse the AST recursively and look for node types that we want to extract.
 
-- Each node has a type like `class_definition` or `function_definition` (and many more like `expression_statement`, `assignment`, `identifier`, etc.)
+- Each node has a type like `class_definition` or `function_definition` (and many more like `expression_statement`, `assignment`, `identifier`, etc.). The node types can vary with language e.g For Java, method is method_declaration, for Rust it's function_item, javascript method_definition etc.
 - We can use the `child_by_field_name` method to get the child node with a specific field name.
 - We can get the text of the node using the `text` attribute. Text content is stored in bytes so we need to decode it.
 - Nodes form a tree like structure and we can access children using `node.children`
@@ -479,7 +479,7 @@ Using this query, you can extract detailed information about each class in the c
 You can see projects storing the queries as `.scm` files often in projects like [aider](https://github.com/Aider-AI/aider/tree/main/aider/queries) and [locify](https://github.com/ryanhoangt/locify/tree/main/locify/tree_sitter).
 
 
-My implementation for codeQA is similar, you can check [treesitter.py](https://github.com/sankalp1999/code_qa/blob/main/treesitter.py) for more details.
+**My implementation for codeQA is similar, you can check [treesitter.py](https://github.com/sankalp1999/code_qa/blob/main/treesitter.py) for more details. You can see that I have defined queries for different languages.**
 
 ---
 
