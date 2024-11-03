@@ -417,12 +417,14 @@ By leveraging the LLM's understanding of both code and natural language, it gene
 
 
 
-A vector search is performed using the second query and topK results are re-ranked using `answerdotai/answerai-colbert-small-v1` and then relevant meta-data is fetched. 
+A vector search is performed using the second query and topK results are re-ranked using [answerdotai/answerai-colbert-small-v1](https://huggingface.co/answerdotai/answerai-colbert-small-v1) and then relevant meta-data is fetched. 
 
 Note that **references are fetched from meta data and combined with code to be feeded as context for the LLM**.
 
 ```python
-...
+
+# app.py, from the function def generate_context(query, rerank=False)
+
     hyde_query = openai_hyde(query)
 
     method_docs = method_table.search(hyde_query).limit(5).to_pandas()
@@ -430,7 +432,7 @@ Note that **references are fetched from meta data and combined with code to be f
 
     temp_context = '\n'.join(method_docs['code'] + '\n'.join(class_docs['source_code']) )
 
-    hyde_query_v2 = openai_query_for_references(query, temp_context)
+    hyde_query_v2 = openai_hyde_v2(query, temp_context)
 
     logging.info("-query_v2-")
     logging.info(hyde_query_v2)
@@ -478,8 +480,7 @@ Thank you for reading!
 ## References
 
 Links as they appear in the post
-
-1. [Learnings from codeQA - Part 1](https://www.notion.so/Learnings-from-codeQA-Part-1-5eb12ceb948040789d0a0aca1ac23329?pvs=21)
+1. TODO: Add link to Part 1
 2. [Three LLM tricks that boosted embeddings search accuracy by 37% — Cosine](https://www.buildt.ai/blog/3llmtricks)
 3. [MTEB leaderboard](https://huggingface.co/spaces/mteb/leaderboard)
 4. [JinaAI's fine-tuning API announcement](https://x.com/JinaAI_/status/1785337862755356685)
