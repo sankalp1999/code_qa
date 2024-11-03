@@ -160,7 +160,7 @@ def generate_context(query, rerank=False):
 
     temp_context = '\n'.join(method_docs['code'] + '\n'.join(class_docs['source_code']) )
 
-    hyde_query_v2 = openai_hyde_v2(query, temp_context)
+    hyde_query_v2 = openai_hyde_v2(hyde_query, temp_context)
 
     logging.info("-query_v2-")
     logging.info(hyde_query_v2)

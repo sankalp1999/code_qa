@@ -23,3 +23,5 @@ python preprocessing.py "$folder_path"
 python create_tables.py "$folder_path"
 
 echo "Processing complete."
+
+echo "Please run python app.py <absolute_path_to_folder> to run the server"
