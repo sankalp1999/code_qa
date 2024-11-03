@@ -8,7 +8,8 @@ A powerful code search and query system that lets you explore codebases using na
 ## What is CodeQA?
 
 CodeQA helps you understand codebases by:
-- Indexing your code using AST parsing and OpenAI/Jina (can be extended to local) embeddings
+- Extracting code structure and metadata using tree-sitter AST parsing
+- Indexing the code chunks using OpenAI/Jina embeddings and storing them in LanceDB
 - Enabling natural language searches across the codebase
 - Providing context-aware answers with references
 - Supporting interactive chat-based code exploration
