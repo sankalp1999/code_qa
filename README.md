@@ -1,25 +1,18 @@
-TODO
-References are not working right now   
 
-# CodeQA
+TODO: Add blog links
 
+A powerful code search and query system that lets you explore codebases using natural language. Ask questions about your code and get contextual answers powered by LLMs. Supports Python, Rust, JavaScript and Java with a clean, minimal UI.
 
-This project is a code search and query system that allows you to index and search through a codebase using natural language queries. It supports python, rust, javascript and java. It provides a minimal ui for easy interaction.
+> **Note**: New OpenAI/Anthropic accounts may experience token rate limits. Consider using an established account.
 
-Note for users: If you have a new account for openai or anthropic, you may 
-get hit with tokens per minute rate limits. 
+## What is CodeQA?
 
-TODO:
-- improve latency - shift to groq when they raise rate limits
-- better name to be decided
+CodeQA helps you understand codebases by:
+- Indexing your code using AST parsing and OpenAI/Jina (can be extended to local) embeddings
+- Enabling natural language searches across the codebase
+- Providing context-aware answers with references
+- Supporting interactive chat-based code exploration
 
-
-## Features
-
-- Index and search through codebases in various programming languages (Java, Python, Rust, JavaScript)
-- Natural language query interface for code search
-- Context-aware search results with relevant code snippets
-- Chat-based interaction for code-related queries
 
 ## Prerequisites
 
@@ -60,12 +53,13 @@ redis-server
 
 ## Configuration
 
-Set the environment variables for the API keys:
+Set the environment variables for the API keys in a .env file.
 
-```bash
-export OPENAI_KEY="your-openai-api-key"
 ```
-
+OPENAI_API_KEY="your-openai-api-key"
+JINA_API_KEY="your-jina-api-key"
+```
+Note: Jina API key is optional. If you want to use Jina embeddings instead of OpenAI, then add your API key.
 ## Building the Codebase Index
 
 To build the index for the codebase, run the following script:
@@ -76,67 +70,34 @@ chmod +x index_codebase.sh
 ```
 
 ```bash
-./index_codebase.sh
+./index_codebase.sh <absolute_path_to_codebase>
 ```
-
-Follow the prompts to enter the language and absolute path of your codebase.
-
-![Example Image](images/example.png)
 
 
 ## Usage
 
-To start the server, use the following command:
-
-language commands should look like: `javascript, python, rust, java`
+To start the server
 
 ```bash
-python app.py <language> <folder_path>
+python app.py <folder_path>
 ```
 
 For example, to analyze a JavaScript project located in `/Users/sankalp/Documents/code2prompt/twitter-circle`, run:
 
 ```bash
-python app.py javascript /Users/sankalp/Documents/code2prompt/twitter-circle
+python app.py /Users/sankalp/Documents/code2prompt/twitter-circle
 ```
 
-Once the server is running, open a web browser and navigate to `http://localhost:5000` to access the code search and query interface.
+Once the server is running, open a web browser and navigate to `http://localhost:5001` to access the code search and query interface.
 
-## Supported Languages
-
-- Java
-- Python
-- Rust
-- JavaScript
 
 ## Technologies Used
 
 - Flask: server and UI
 - Treesitter: parsing methods, classes, constructor declarations in a language agnostic way using the abstract syntax tree
-- Whoosh: full-text search library for indexing and querying code
 - LanceDB: vector db for storing and searching code embeddings
 - Redis: in-memory data store for caching and session management
-- OpenAI, Anthropic, Cohere, Groq: Openai, Anthropic, Groq for chat functionalities and Cohere for reranker
-
-## How It Works
-
-Stay tuned for an upcoming blog post that will provide detailed insights and advancements related to this project.
-
-Summary
-
-This project is essentially top-K RAG with bunch of other small hackery / tricks.
-
-Code QA essentially boils down to a code search problem since you need to map from natural language to actual keywords. 
-
-You need to provide relevant context to the LLM so that it can actually answer the questions and not hallucinate.
-
-- I use tree-sitter ast (abstract syntax tree) to get all methods, classes, constructor declarations.
-- different tree-sitter language implementations have slightly different syntax so accommodate for that
-- generate short documentation for each of the methods -> to improve the embedding search, also query will look more like documentation
-- Embed the methods and classes in separate vector db tables
-- REMOVED -> generate a full-text based index using whoosh library. this is a language agnostic way to get references once the keywords are clear
-- At retrieval time query -> Hyde query -> get context -> get better query using context -> get references -> plug new context into LLM 
-- get answer
+- OpenAI, Jina for chat functionalities and colbert-small-v1 for reranker
 
 
 ## License
