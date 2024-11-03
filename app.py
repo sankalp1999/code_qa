@@ -18,7 +18,6 @@ load_dotenv()
 from prompts import (
     HYDE_SYSTEM_PROMPT,
     HYDE_V2_SYSTEM_PROMPT,
-    REFERENCES_SYSTEM_PROMPT,
     CHAT_SYSTEM_PROMPT  
 )
 
@@ -131,7 +130,7 @@ def openai_hyde_v2(query, temp_context, hyde_query):
 
 def openai_chat(query, context):
     chat_completion = client.chat.completions.create(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         messages=[
             {
                 "role": "system",
@@ -160,7 +159,7 @@ def generate_context(query, rerank=False):
 
     temp_context = '\n'.join(method_docs['code'] + '\n'.join(class_docs['source_code']) )
 
-    hyde_query_v2 = openai_hyde_v2(hyde_query, temp_context)
+    hyde_query_v2 = openai_hyde_v2(query, temp_context, hyde_query)
 
     logging.info("-query_v2-")
     logging.info(hyde_query_v2)

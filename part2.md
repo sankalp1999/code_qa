@@ -455,6 +455,30 @@ Note that **references are fetched from meta data and combined with code to be f
 
 ```
 
+All the above context is plugged into an LLM which chats with the user. I use `gpt-4o` for this as we need a strong LLM for figuring out the context and best chatting UX (available with OpenAI key otherwise Claude 3.5 Sonnet).
+
+We have completed the Retrieval Augmented Generation here. If the user mentions @codebase, then only embeddings are retrieved otherwise existing context is used. If the LLM 
+is not confident about the context, it will tell the user to mention @codebase (because of the system prompt)
+
+```python
+# app.py, from the function def home()
+    rerank = True if rerank in [True, 'true', 'True', '1'] else False
+
+            if '@codebase' in query:
+                query = query.replace('@codebase', '').strip()
+                context = generate_context(query, rerank)
+                app.logger.info("Generated context for query with @codebase.")
+                app.redis_client.set(f"user:{user_id}:chat_context", context)
+            else:
+                context = app.redis_client.get(f"user:{user_id}:chat_context")
+                if context is None:
+                    context = ""
+                else:
+                    context = context.decode()
+
+            # Now, apply reranking during the chat response if needed
+            response = openai_chat(query, context[:12000])  # Adjust as needed
+```
 
 ## Conclusion
 

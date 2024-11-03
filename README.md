@@ -98,6 +98,7 @@ Once the server is running, open a web browser and navigate to `http://localhost
 - Flask: server and UI
 - Treesitter: parsing methods, classes, constructor declarations in a language agnostic way using the abstract syntax tree
 - LanceDB: vector db for storing and searching code embeddings
+- Redis: in-memory data store for caching and session management
 - OpenAI, Jina for chat functionalities and colbert-small-v1 for reranker
 
 
