@@ -53,14 +53,14 @@ redis-server
 ```
 
 ## Configuration
+You only need to set the OpenAI API key. Jina API key is optional, if you want to use Jina embeddings instead of OpenAI.
 
-Set the environment variables for the API keys in a .env file.
+Create a .env file and add the following:
 
 ```
 OPENAI_API_KEY="your-openai-api-key"
 JINA_API_KEY="your-jina-api-key"
 ```
-Note: Jina API key is optional. If you want to use Jina embeddings instead of OpenAI, then add your API key.
 ## Building the Codebase Index
 
 To build the index for the codebase, run the following script:
@@ -74,6 +74,7 @@ chmod +x index_codebase.sh
 ./index_codebase.sh <absolute_path_to_codebase>
 ```
 
+This will parse the codebase to get the code chunks, generate embeddings, references and store them in LanceDB.
 
 ## Usage
 
