@@ -1,7 +1,11 @@
 
-TODO: Add blog links
 
-A powerful code search and query system that lets you explore codebases using natural language. Ask questions about your code and get contextual answers powered by LLMs. Supports Python, Rust, JavaScript and Java with a clean, minimal UI.
+Blog Links:
+
+[An attempt to build cursor's @codebase feature - RAG on codebases - part 1](https://blog.lancedb.com/rag-codebase-1/)
+[An attempt to build cursor's @codebase feature - RAG on codebases - part 2](https://blog.lancedb.com/building-rag-on-codebases-part-2/)
+
+A powerful code search and query system that lets you explore codebases using natural language. Ask questions about your code and get contextual answers powered by LanceDB, OpenAI gpt4o-mini/gpt4o and Answerdotai's colbert-small-v1 reranker. Supports Python, Rust, JavaScript and Java with a clean, minimal UI.
 
 > **Note**: New OpenAI/Anthropic accounts may experience token rate limits. Consider using an established account.
 
@@ -10,7 +14,7 @@ A powerful code search and query system that lets you explore codebases using na
 CodeQA helps you understand codebases by:
 - Extracting code structure and metadata using tree-sitter AST parsing
 - Indexing the code chunks using OpenAI/Jina embeddings and storing them in LanceDB
-- Enabling natural language searches across the codebase
+- Enabling natural language searches across the codebase by using @codebase in queries
 - Providing context-aware answers with references
 - Supporting interactive chat-based code exploration
 
@@ -36,8 +40,10 @@ CodeQA helps you understand codebases by:
 
 3. Set up a Python virtual environment:
 
+ Treesitter is supported >=3.8 to 3.11
+
    ```bash
-   python3 -m venv venv
+   python3.11 -m venv venv
    source venv/bin/activate
    ```
 
@@ -91,6 +97,9 @@ python app.py /Users/sankalp/Documents/code2prompt/twitter-circle
 ```
 
 Once the server is running, open a web browser and navigate to `http://localhost:5001` to access the code search and query interface.
+
+Use @codebase keyword in queries to fetch context via embeddings 
+Enable re-ranking option to get more relevant results
 
 
 ## Technologies Used
