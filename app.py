@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from redis import ConnectionPool
 import time
 from concurrent.futures import ThreadPoolExecutor
+import openai
 
 load_dotenv()
 
@@ -105,7 +106,11 @@ def setup_app():
 app = setup_app()
 
 # OpenAI client setup
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+# client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+client = openai.OpenAI(
+    api_key=os.environ.get("SAMBANOVA_API_KEY"),
+    base_url="https://api.sambanova.ai/v1",
+)
 
 
 # Initialize the reranker
@@ -114,7 +119,8 @@ reranker = AnswerdotaiRerankers(column="source_code")
 # Replace groq_hyde function
 def openai_hyde(query):
     chat_completion = client.chat.completions.create(
-        model="gpt-4o-mini",
+        # model="gpt-4o-mini",
+        model='Meta-Llama-3.1-70B-Instruct',
         messages=[
             {
                 "role": "system",
@@ -130,7 +136,8 @@ def openai_hyde(query):
 
 def openai_hyde_v2(query, temp_context, hyde_query):
     chat_completion = client.chat.completions.create(
-        model="gpt-4o-mini",
+        # model="gpt-4o-mini",
+        model='Meta-Llama-3.1-70B-Instruct',
         messages=[
             {
                 "role": "system",
@@ -149,7 +156,8 @@ def openai_chat(query, context):
     start_time = time.time()
     
     chat_completion = client.chat.completions.create(
-        model="gpt-4o-mini",
+        # model="gpt-4o-mini",
+        model='Meta-Llama-3.1-70B-Instruct',
         messages=[
             {
                 "role": "system",
@@ -335,6 +343,22 @@ if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5001)
 
 
+# Main latency here is because of Context + LLM processing so need faster LLM
+
+
+# SambaNova halves the total effective time
+# 13-Nov-24 03:33:14 - First HYDE call took: 2.20 seconds
+# 13-Nov-24 03:33:15 - First DB search took: 1.44 seconds
+# 13-Nov-24 03:33:20 - Second HYDE call took: 4.91 seconds
+# 13-Nov-24 03:33:22 - Second DB search took: 1.53 seconds
+# 13-Nov-24 03:33:22 - Reranking enabled: True
+# 13-Nov-24 03:33:22 - Reranking took: 0.00 seconds
+# 13-Nov-24 03:33:22 - Final DB search took: 0.55 seconds
+# 13-Nov-24 03:33:22 - Context generation complete.
+# 13-Nov-24 03:33:22 - Total context generation took: 10.63 seconds
+# 13-Nov-24 03:33:22 - Generated context for query with @codebase.
+# 13-Nov-24 03:33:28 - Chat response took: 5.59 seconds
+
 # 127.0.0.1 - - [13/Nov/2024 02:45:06] "GET / HTTP/1.1" 200 -
 # 13-Nov-24 02:45:21 - First HYDE call took: 3.05 seconds
 # 13-Nov-24 02:45:23 - First DB search took: 2.36 seconds
@@ -358,3 +382,4 @@ if __name__ == "__main__":
 # 13-Nov-24 03:02:04 - Total context generation took: 12.86 seconds
 # 13-Nov-24 03:02:04 - Generated context for query with @codebase.
 # 13-Nov-24 03:02:26 - Chat response took: 22.19 seconds
+
