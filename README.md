@@ -10,7 +10,7 @@ A powerful code search and query system that lets you explore codebases using na
 
 > **Note**: New OpenAI/Anthropic accounts may experience token rate limits. Consider using an established account.
 
-Update 12th November 2024: Check the branch `feature/optimization` which runs 2x faster than this mainly because of using SambaNova Inference and minor concurrent processing improvements
+Update 12th November 2024: Check the branch `feature/optimization` which runs 2-4x faster than this mainly because of using SambaNova Inference and minor concurrent processing improvements. Main bottlenecks are LLM context processing based (HyDE call and final chat response) so faster inference solves that.
 
 ## What is CodeQA?
 
