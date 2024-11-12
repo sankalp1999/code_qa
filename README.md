@@ -10,6 +10,10 @@ A powerful code search and query system that lets you explore codebases using na
 
 > **Note**: New OpenAI/Anthropic accounts may experience token rate limits. Consider using an established account.
 
+## Note:
+
+This branch uses SambaNova's API for faster LLM processing - 2x speed up over gpt4o-mini timings + batch processing for VDB queries
+
 ## What is CodeQA?
 
 CodeQA helps you understand codebases by:
@@ -67,7 +71,10 @@ Create a .env file and add the following:
 ```
 OPENAI_API_KEY="your-openai-api-key"
 JINA_API_KEY="your-jina-api-key"
+SAMBANOVA_API_KEY="your-sambanova-api-key"
 ```
+
+This branch uses SambaNova's API for faster LLM processing - 2x speed up over gpt4o-mini timings
 ## Building the Codebase Index
 
 To build the index for the codebase, run the following script:
