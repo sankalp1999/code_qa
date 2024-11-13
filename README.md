@@ -1,5 +1,4 @@
 
-
 Blog Links:
 
 [An attempt to build cursor's @codebase feature - RAG on codebases - part 1](https://blog.lancedb.com/rag-codebase-1/)
@@ -10,10 +9,18 @@ A powerful code search and query system that lets you explore codebases using na
 
 > **Note**: New OpenAI/Anthropic accounts may experience token rate limits. Consider using an established account.
 
-## Note:
+# Optimized Branch
 
-This branch uses SambaNova's API for faster LLM processing - 2x speed up over gpt4o-mini timings + batch processing for VDB queries
+The code on this branch runs in the 10-20 seconds range, roughly 2.5x faster than the main branch.
+Main changes:
+Reduced the max_token counts to 400 for HYDE and 768 for HYDE-v2
+This step saves roughly 5-10 seconds.
 
+2. 
+a) Using SambaNova Llama 3.1 8b as a context filterer after fetching the final context + metadata from vector db 
+b) Using SambaNova Llama 3.1-70b instead of gpt4o for chat response 400 tok/s
+
+This step saves 20 seconds. 
 ## What is CodeQA?
 
 CodeQA helps you understand codebases by:
