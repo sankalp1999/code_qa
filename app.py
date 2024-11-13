@@ -121,7 +121,7 @@ reranker = AnswerdotaiRerankers(column="source_code")
 def openai_hyde(query):
     chat_completion = openai_client.chat.completions.create(
         model="gpt-4o-mini",
-        max_tokens=512,
+        max_tokens=400,
         messages=[
             {
                 "role": "system",
@@ -139,7 +139,7 @@ def openai_hyde(query):
 def openai_hyde_v2(query, temp_context, hyde_query):
     chat_completion = openai_client.chat.completions.create(
         model="gpt-4o-mini",
-        max_tokens=1024,
+        max_tokens=768,
         messages=[
             {
                 "role": "system",
