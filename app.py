@@ -98,7 +98,6 @@ reranker = AnswerdotaiRerankers(column="source_code")
 def openai_hyde(query):
     chat_completion = client.chat.completions.create(
         model="gpt-4o-mini",
-        max_tokens=400,
         messages=[
             {
                 "role": "system",
@@ -115,7 +114,6 @@ def openai_hyde(query):
 def openai_hyde_v2(query, temp_context, hyde_query):
     chat_completion = client.chat.completions.create(
         model="gpt-4o-mini",
-        max_tokens=768,
         messages=[
             {
                 "role": "system",
@@ -181,17 +179,6 @@ def generate_context(query, rerank=False):
 
     top_3_classes = class_docs[:3]
     classes_combined = "\n\n".join(f"File: {doc['file_path']}\nClass Info:\n{doc['source_code']} References: \n{doc['references']}  \n END OF ROW {i}" for i, doc in enumerate(top_3_classes))
-
-    app.logger.info("Classes Combined:")
-    app.logger.info("-" * 40)
-    app.logger.info(classes_combined)
-    app.logger.info(f"Length of classes_combined: {len(classes_combined)}")
-    app.logger.info("-" * 40)
-
-    app.logger.info("Methods Combined:")
-    app.logger.info("-" * 40)
-    app.logger.info(methods_combined)
-    app.logger.info("-" * 40)
 
     app.logger.info("Context generation complete.")
 
