@@ -107,7 +107,7 @@ def setup_app():
 app = setup_app()
 
 # OpenAI client setup
-# client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+openai_client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 client = openai.OpenAI(
     api_key=os.environ.get("SAMBANOVA_API_KEY"),
     base_url="https://api.sambanova.ai/v1",
@@ -119,9 +119,9 @@ reranker = AnswerdotaiRerankers(column="source_code")
 
 # Replace groq_hyde function
 def openai_hyde(query):
-    chat_completion = client.chat.completions.create(
-        # model="gpt-4o-mini",
-        model='Meta-Llama-3.1-70B-Instruct',
+    chat_completion = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        max_tokens=512,
         messages=[
             {
                 "role": "system",
@@ -133,12 +133,13 @@ def openai_hyde(query):
             }
         ]
     )
+    app.logger.info(f"First HYDE response: {chat_completion.choices[0].message.content}")
     return chat_completion.choices[0].message.content
 
 def openai_hyde_v2(query, temp_context, hyde_query):
-    chat_completion = client.chat.completions.create(
-        # model="gpt-4o-mini",
-        model='Meta-Llama-3.1-70B-Instruct',
+    chat_completion = openai_client.chat.completions.create(
+        model="gpt-4o-mini",
+        max_tokens=1024,
         messages=[
             {
                 "role": "system",
@@ -150,6 +151,7 @@ def openai_hyde_v2(query, temp_context, hyde_query):
             }
         ]
     )
+    app.logger.info(f"Second HYDE response: {chat_completion.choices[0].message.content}")
     return chat_completion.choices[0].message.content
 
 
@@ -157,7 +159,6 @@ def openai_chat(query, context):
     start_time = time.time()
     
     chat_completion = client.chat.completions.create(
-        # model="gpt-4o-mini",
         model='Meta-Llama-3.1-70B-Instruct',
         messages=[
             {
@@ -180,7 +181,6 @@ def rerank_using_small_model(query, context):
     start_time = time.time()
     
     chat_completion = client.chat.completions.create(
-        # model="gpt-4o-mini",
         model='Meta-Llama-3.1-8B-Instruct',
         messages=[
             {
