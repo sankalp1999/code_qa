@@ -1,18 +1,25 @@
 
 
+
+**Update 14th November 2024**: Check the branch [`feature/optimization`](https://github.com/sankalp1999/code_qa/tree/feature/optimization) which runs 2.5x faster than this branch's code (what you saw in the demo video).
+The optimized branch achieves 2.5x faster performance (10-20 seconds range) through two key improvements:
+
+1. **Optimized Token Management** - Reduced HYDE max tokens to 400 and HYDE-v2 to 768. Keeps hallucinated output concise while maintaining relevance. Result: ~5-10 seconds saved
+
+2. **Enhanced Context Processing** - Implemented SambaNova Llama 3.1 8b (1000 tok/s) for context filtering and changed gpt4o -> SambaNova Llama 3.1-70b (400 tok/s) for chat responses. Improved context relevance and processing speed. Result: ~20 seconds saved
+
+Worst case scenario codeQA works under 20 seconds as compared to the previous 40 seconds.
+
+## What is CodeQA?
+
+A powerful code search and query system that lets you explore codebases using natural language. Ask questions about your code and get contextual answers powered by LanceDB, OpenAI gpt4o-mini/gpt4o and Answerdotai's colbert-small-v1 reranker. Supports Python, Rust, JavaScript and Java with a clean, minimal UI.
+
 Blog Links:
 
 [An attempt to build cursor's @codebase feature - RAG on codebases - part 1](https://blog.lancedb.com/rag-codebase-1/)
 
 [An attempt to build cursor's @codebase feature - RAG on codebases - part 2](https://blog.lancedb.com/building-rag-on-codebases-part-2/)
 
-A powerful code search and query system that lets you explore codebases using natural language. Ask questions about your code and get contextual answers powered by LanceDB, OpenAI gpt4o-mini/gpt4o and Answerdotai's colbert-small-v1 reranker. Supports Python, Rust, JavaScript and Java with a clean, minimal UI.
-
-> **Note**: New OpenAI/Anthropic accounts may experience token rate limits. Consider using an established account.
-
-Update 12th November 2024: Check the branch `feature/optimization` which runs 2-4x faster than this mainly because of using SambaNova Inference and minor concurrent processing improvements. Main bottlenecks are LLM context processing based (HyDE call and final chat response) so faster inference solves that.
-
-## What is CodeQA?
 
 CodeQA helps you understand codebases by:
 - Extracting code structure and metadata using tree-sitter AST parsing
