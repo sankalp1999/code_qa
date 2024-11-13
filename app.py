@@ -21,7 +21,8 @@ load_dotenv()
 from prompts import (
     HYDE_SYSTEM_PROMPT,
     HYDE_V2_SYSTEM_PROMPT,
-    CHAT_SYSTEM_PROMPT  
+    CHAT_SYSTEM_PROMPT,
+    RERANK_PROMPT
 )
 
 # Configuration
@@ -175,6 +176,29 @@ def openai_chat(query, context):
     
     return chat_completion.choices[0].message.content
 
+def rerank_using_small_model(query, context):
+    start_time = time.time()
+    
+    chat_completion = client.chat.completions.create(
+        # model="gpt-4o-mini",
+        model='Meta-Llama-3.1-8B-Instruct',
+        messages=[
+            {
+                "role": "system",
+                "content": RERANK_PROMPT.format(context=context)
+            },
+            {
+                "role": "user",
+                "content": query,
+            }
+        ]
+    )
+    
+    chat_time = time.time() - start_time
+    app.logger.info(f"Llama 8B reranker response took: {chat_time:.2f} seconds")
+    
+    return chat_completion.choices[0].message.content
+
 def process_input(input_text):
     processed_text = input_text.replace('\n', ' ').replace('\t', ' ')
     processed_text = re.sub(r'\s+', ' ', processed_text)
@@ -270,12 +294,16 @@ def generate_context(query, rerank=False):
         for i, doc in enumerate(top_3_classes)
     )
 
+    final_context = rerank_using_small_model(query, classes_combined + "\n" + methods_combined)
+
     app.logger.info("Context generation complete.")
 
     total_time = time.time() - start_time
     app.logger.info(f"Total context generation took: {total_time:.2f} seconds")
+    return final_context
+
     
-    return methods_combined + "\n below is class or constructor related code \n" + classes_combined
+    # return methods_combined + "\n below is class or constructor related code \n" + classes_combined
 
 @app.route('/', methods=['GET', 'POST'])
 def home():
