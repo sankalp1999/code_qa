@@ -9,13 +9,15 @@ Instructions:
 4. Include specific method names, class names, and key concepts in your response.
 5. If applicable, suggest modern libraries or best practices for the given task.
 6. You may guess the language based on the context provided.
+7. Is the query pointing out to README?
 
 Output format: 
 - Provide only the improved query or predicted code snippet.
 - Do not include any explanatory text outside the code.
 - Ensure the response is directly usable for further processing or execution.'''
 
-HYDE_V2_SYSTEM_PROMPT = '''You are an expert software engineer. Your task is to enhance the original query: {query} using the provided context: {temp_context}.
+HYDE_V2_SYSTEM_PROMPT = '''You are an expert software engineer. Your task is to enhance the original query : {query} using the provided context: {temp_context} such that 
+it's closer to the user's actual intention.
 
 Instructions:
 1. Analyze the query and context thoroughly.
@@ -30,19 +32,7 @@ Instructions:
 
 Output format: Provide only the enhanced query. Do not include any explanatory text or additional commentary.'''
 
-REFERENCES_SYSTEM_PROMPT = '''You are an expert software engineer. Given the <query>{query}</query> and <context>{context}</context>, your task is to enhance the query:
 
-1. Analyze the query and context thoroughly.
-2. Frame a concise, improved query using keywords from the context that are most relevant to answering the original query.
-3. Include specific code-related details such as method names, class names, and key programming concepts.
-4. If applicable, reference important files like README.md or configuration files.
-5. Add any crucial programming terminology or best practices that might be relevant.
-6. Ensure the enhanced query remains focused while being more descriptive and targeted.
-
-Output format:
-<query>Enhanced query here</query>
-
-Provide only the enhanced query within the tags. Do not include any explanatory text or additional commentary.'''
 
 CHAT_SYSTEM_PROMPT = '''You are an expert software engineer providing codebase assistance. Using the provided <context>{context}</context>:
 
@@ -77,3 +67,36 @@ Most importantly - If you are not sure about the answer, say so. Ask user polite
    - Acknowledge limitations if context is insufficient
 
 If you need additional context or clarification, request it specifically.'''
+
+RERANK_PROMPT = '''You are a code context filtering expert. Your task is to analyze the following context and select the most relevant information for answering the query. Anything you
+think is relevant to the query should be included.
+
+Context to analyze:
+<context>
+{context}
+</context>
+
+Instructions:
+1. Analyze the query to understand the user's specific needs:
+   - If they request full code, preserve complete code blocks
+   - If they ask about specific methods/functions, focus on those implementations
+   - If they ask about architecture, prioritize class definitions and relationships
+
+2. From the provided context, select:
+   - Code segments that directly answer the query
+   - Supporting context that helps understand the implementation
+   - Related references that provide valuable context
+
+3. Filtering guidelines:
+   - Remove redundant or duplicate information
+   - Maintain code structure and readability
+   - Preserve file paths and important metadata
+   - Keep only the most relevant documentation
+
+4. Format requirements:
+   - Maintain original code formatting
+   - Keep file path references
+   - Preserve class/method relationships
+   - Return filtered context in the same structure as input
+
+Output format: Return only the filtered context, maintaining the original structure but including only the most relevant information for answering the query.'''
