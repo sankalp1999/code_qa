@@ -143,11 +143,11 @@ def openai_hyde_v2(query, temp_context, hyde_query):
         messages=[
             {
                 "role": "system",
-                "content": HYDE_V2_SYSTEM_PROMPT.format(query=query, temp_context=temp_context)
+                "content": HYDE_V2_SYSTEM_PROMPT.format(temp_context=temp_context)
             },
             {
                 "role": "user",
-                "content": f"Predict the answer to the query: {hyde_query}",
+                "content": f"Predict the answer to the query: {query}",
             }
         ]
     )
@@ -296,6 +296,8 @@ def generate_context(query, rerank=False):
 
     final_context = rerank_using_small_model(query, classes_combined + "\n" + methods_combined)
 
+    app.logger.info(f"Final context: {final_context}")
+
     app.logger.info("Context generation complete.")
 
     total_time = time.time() - start_time
@@ -334,7 +336,7 @@ def home():
                     context = context.decode()
 
             # Now, apply reranking during the chat response if needed
-            response = openai_chat(query, context[:12000])  # Adjust as needed
+            response = openai_chat(query, context[:8192])  # Adjust as needed
 
             # Store the conversation history
             redis_key = f"user:{user_id}:responses"
