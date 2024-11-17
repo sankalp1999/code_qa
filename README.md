@@ -11,22 +11,9 @@ A powerful code search and query system that lets you explore codebases using na
 
 # Optimized Branch
 
-The code on this branch runs in the 10-20 seconds range, roughly 2.5x faster than the main branch.
-Main changes:
+Please read this quick write up about the optimizations [here](https://sankalp.bearblog.dev/lessons-from-speeding-up-codeqa/)
+This branch runs 2.5x faster than the main branch in worst case.
 
-Reduced the max_token counts to 400 for HYDE and 768 for HYDE-v2. This ensures that the hallucinated output is not too long thus saving time. We just
-need the minimal amount of relevant output that is close to our intended query and less than 512 tokens are more than enough (i.e ~300-400 words)
-
-This step saves roughly 5-10 seconds.
-
-2. Context filtering + Faster inference
-
-a) Using SambaNova Llama 3.1 8b as a context filterer after fetching the final context + metadata from vector db 
-b) Using SambaNova Llama 3.1-70b instead of gpt4o for chat response 400 tok/s
-
-The above again try to reduce the amount of irrelevant context and process the relevant context as fast as possible.
-
-This step saves 20 seconds. 
 ## What is CodeQA?
 
 CodeQA helps you understand codebases by:
