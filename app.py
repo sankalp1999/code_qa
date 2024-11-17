@@ -282,19 +282,32 @@ def generate_context(query, rerank=False):
     final_search_time = time.time()
     app.logger.info(f"Final DB search took: {final_search_time - rerank_time:.2f} seconds")
 
-    # Combine documents
-    top_3_methods = method_docs[:3]
-    methods_combined = "\n\n".join(
-        f"File: {doc['file_path']}\nCode:\n{doc['code']}" for doc in top_3_methods
-    )
+    def process_methods():
+        top_3_methods = method_docs[:3]
+        methods_combined = "\n\n".join(
+            f"File: {doc['file_path']}\nCode:\n{doc['code']}" for doc in top_3_methods
+        )
+        return rerank_using_small_model(query, methods_combined)
 
-    top_3_classes = class_docs[:3]
-    classes_combined = "\n\n".join(
-        f"File: {doc['file_path']}\nClass Info:\n{doc['source_code']} References: \n{doc['references']}  \n END OF ROW {i}"
-        for i, doc in enumerate(top_3_classes)
-    )
+    def process_classes():
+        top_3_classes = class_docs[:3]
+        classes_combined = "\n\n".join(
+            f"File: {doc['file_path']}\nClass Info:\n{doc['source_code']} References: \n{doc['references']}  \n END OF ROW {i}"
+            for i, doc in enumerate(top_3_classes)
+        )
+        return rerank_using_small_model(query, classes_combined)
 
-    final_context = rerank_using_small_model(query, classes_combined + "\n" + methods_combined)
+    # Parallel execution of reranking
+    parallel_start_time = time.time()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        future_methods = executor.submit(process_methods)
+        future_classes = executor.submit(process_classes)
+        methods_context = future_methods.result()
+        classes_context = future_classes.result()
+    parallel_time = time.time() - parallel_start_time
+    app.logger.info(f"Parallel reranking took: {parallel_time:.2f} seconds")
+
+    final_context = f"{methods_context}\n{classes_context}"
 
     app.logger.info(f"Final context: {final_context}")
 
